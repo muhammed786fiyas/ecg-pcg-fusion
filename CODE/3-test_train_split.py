@@ -40,10 +40,10 @@ def copy_files(df, destination):
         src = os.path.join(mat_dir, mat_file)
         dst = os.path.join(destination, mat_file)
 
-        # if os.path.exists(src):
-        #     shutil.copy(src, dst)
-        # else:
-        #     print(f"Missing file: {mat_file}")
+        if os.path.exists(src):
+            shutil.copy(src, dst)
+        else:
+            print(f"Missing file: {mat_file}")
 
 copy_files(train_df, train_dir)
 copy_files(test_df, test_dir)
@@ -51,8 +51,8 @@ copy_files(test_df, test_dir)
 # ----------------------------
 # Save split labels
 # ----------------------------
-# train_df.to_csv(os.path.join(output_base, "train_labels.csv"), index=False)
-# test_df.to_csv(os.path.join(output_base, "test_labels.csv"), index=False)
+train_df.to_csv(os.path.join(output_base, "train_labels.csv"), index=False)
+test_df.to_csv(os.path.join(output_base, "test_labels.csv"), index=False)
 
 print("✅ 70–30 stratified train–test split completed")
 print(f"Train samples: {len(train_df)}")
