@@ -282,6 +282,92 @@ Notes:
     with open(LOG_FILE, "a", encoding="utf-8") as f:
         f.write(log_entry)
 
+# ============================================================
+# LOG DATA CLEANING (NaN REMOVAL)
+# ============================================================
+def log_data_cleaning():
+    removed_records = [
+        "a0014","a0027","a0028","a0045","a0055","a0057","a0068","a0070",
+        "a0075","a0118","a0160","a0163","a0179","a0250","a0274","a0303",
+        "a0315","a0361","a0395"
+    ]
+
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    log_entry = f"""
+---
+
+## {timestamp} — Data Cleaning Summary (NaN Removal)
+
+**Issue detected:**
+- PCG segments with >90% NaN values
+- ECG signals verified to contain no NaN-only segments
+
+**Affected records:**
+{chr(10).join(['- ' + r for r in removed_records])}
+
+**Actions taken:**
+- Removed invalid segmented `.mat` files
+- Removed all augmented variants (orig / noise / scale / mix)
+- Removed corresponding entries from:
+  - train_segment_labels.csv
+  - train_augmented_labels.csv
+- Removed already-generated scalograms linked to invalid segments
+
+Notes:
+- Invalid signals were excluded to preserve signal integrity
+- Cleaning performed before final scalogram generation
+"""
+
+    with open(LOG_FILE, "a", encoding="utf-8") as f:
+        f.write(log_entry)
+
+
+# ============================================================
+# LOG SCALOGRAM GENERATION
+# ============================================================
+def log_scalogram():
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    log_entry = f"""
+---
+
+## {timestamp} — Scalogram Generation Summary
+
+**Input data:**
+- Cleaned augmented ECG–PCG segments
+- Invalid segments excluded prior to scalogram generation
+
+**Time–frequency representation:**
+- Continuous Wavelet Transform (CWT)
+
+**Wavelet configuration:**
+- ECG:
+  - Wavelet: Complex Morlet (cmor1.5-1.0)
+  - Scales: 20–500 (≈0.5–40 Hz)
+- PCG:
+  - Wavelet: Real Morlet (morl)
+  - Scales: 7–130 (≈20–250 Hz)
+
+**Image settings:**
+- Output size: 224 × 224 pixels
+- Format: PNG
+- Separate directories for ECG and PCG
+
+**Processing details:**
+- Scalogram generation is resume-safe (skip-if-exists enabled)
+- Partial generation supported
+- No downsampling applied
+- Consistent configuration used across the dataset
+
+Notes:
+- Scalograms corresponding to removed segments were deleted
+- Final dataset integrity preserved before model training
+"""
+
+    with open(LOG_FILE, "a", encoding="utf-8") as f:
+        f.write(log_entry)
+
 
 
 # ============================================================
@@ -291,7 +377,7 @@ if __name__ == "__main__":
     import sys
 
     if len(sys.argv) < 2:
-        print("Usage: python log_run.py [raw | mat | split | segment | augment]")
+        print("Usage: python log_run.py [raw | mat | split | segment | augment | clean | scalogram]")
         sys.exit(1)
 
     stage = sys.argv[1].lower()
@@ -306,7 +392,12 @@ if __name__ == "__main__":
         log_segmentation()
     elif stage == "augment":
         log_augmentation()
+    elif stage == "clean":
+        log_data_cleaning()
+    elif stage == "scalogram":
+        log_scalogram()
+
     else:
-        print("Unknown stage. Use: raw | mat | split | segment | augment")
+        print("Unknown stag")
 
 
