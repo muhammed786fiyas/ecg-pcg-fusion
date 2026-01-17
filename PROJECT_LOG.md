@@ -265,3 +265,44 @@ Notes:
 Notes:
 - Augmentation parameters were fixed across all experiments.
 - No augmentation was applied to the test set.
+
+---
+
+## 2026-01-17 23:08:18 — Data Cleaning Summary (NaN Removal)
+
+**Issue detected:**
+- PCG segments with >90% NaN values
+- ECG signals verified to contain no NaN-only segments
+
+**Affected records:**
+- a0014
+- a0027
+- a0028
+- a0045
+- a0055
+- a0057
+- a0068
+- a0070
+- a0075
+- a0118
+- a0160
+- a0163
+- a0179
+- a0250
+- a0274
+- a0303
+- a0315
+- a0361
+- a0395
+
+**Actions taken:**
+- Removed invalid segmented `.mat` files
+- Removed all augmented variants (orig / noise / scale / mix)
+- Removed corresponding entries from:
+  - train_segment_labels.csv
+  - train_augmented_labels.csv
+- Removed already-generated scalograms linked to invalid segments
+
+Notes:
+- Invalid signals were excluded to preserve signal integrity
+- Cleaning performed before final scalogram generation
