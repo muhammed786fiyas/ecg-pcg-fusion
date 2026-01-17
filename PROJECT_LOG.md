@@ -231,3 +231,37 @@ Notes:
 Notes:
 - Patient-wise split preserved.
 - No data augmentation applied at this stage.
+
+
+---
+
+## 2026-01-17 16:05:22 — Training Data Augmentation Summary
+
+**Augmentation stage:**
+- Applied after segmentation and before scalogram generation
+- Applied to training data only
+- Signal-domain augmentation
+
+**Augmentation methods:**
+
+- **ECG**
+  - Additive Gaussian noise (σ = 1% of ECG standard deviation)
+  - Amplitude scaling (factor ∈ [0.9, 1.1])
+
+- **PCG**
+  - Additive Gaussian noise (σ = 0.02)
+  - Amplitude scaling (factor ∈ [0.85, 1.15])
+  - Temporal shift (±50 ms)
+
+**Dataset size:**
+- Original training segments: 2271
+- Augmented training segments: 9084
+- Expansion factor: 4.00×
+
+**Label distribution after augmentation:**
+- +1 segments: 6392 (70.37%)
+- -1 segments: 2692 (29.63%)
+
+Notes:
+- Augmentation parameters were fixed across all experiments.
+- No augmentation was applied to the test set.

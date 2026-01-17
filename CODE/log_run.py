@@ -223,13 +223,90 @@ Notes:
     with open(LOG_FILE, "a", encoding="utf-8") as f:
         f.write(log_entry)
 
+# ============================================================
+# LOG AUGMENTATION
+# ============================================================
+def log_augmentation():
+    TRAIN_SEG_LABELS = r"E:\PROJECTS\CARDIAC-PROJECT-UPDATED\DATASET\4-SEGMENTED_DATA\train_segment_labels.csv"
+    AUG_LABELS = r"E:\PROJECTS\CARDIAC-PROJECT-UPDATED\DATASET\5-AUGMENTED_DATA\train_augmented_labels.csv"
+
+    # Load labels
+    orig_df = pd.read_csv(TRAIN_SEG_LABELS)
+    aug_df  = pd.read_csv(AUG_LABELS)
+
+    orig_count = len(orig_df)
+    aug_count  = len(aug_df)
+    expansion_factor = aug_count / orig_count if orig_count > 0 else 0
+
+    # Label distribution after augmentation
+    counts = aug_df["label"].value_counts()
+    perc = aug_df["label"].value_counts(normalize=True) * 100
+
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    log_entry = f"""
+---
+
+## {timestamp} — Training Data Augmentation Summary
+
+**Augmentation stage:**
+- Applied after segmentation and before scalogram generation
+- Applied to training data only
+- Signal-domain augmentation
+
+**Augmentation methods:**
+
+- **ECG**
+  - Additive Gaussian noise (σ = 1% of ECG standard deviation)
+  - Amplitude scaling (factor ∈ [0.9, 1.1])
+
+- **PCG**
+  - Additive Gaussian noise (σ = 0.02)
+  - Amplitude scaling (factor ∈ [0.85, 1.15])
+  - Temporal shift (±50 ms)
+
+**Dataset size:**
+- Original training segments: {orig_count}
+- Augmented training segments: {aug_count}
+- Expansion factor: {expansion_factor:.2f}×
+
+**Label distribution after augmentation:**
+- +1 segments: {counts.get(1,0)} ({perc.get(1,0):.2f}%)
+- -1 segments: {counts.get(-1,0)} ({perc.get(-1,0):.2f}%)
+
+Notes:
+- Augmentation parameters were fixed across all experiments.
+- No augmentation was applied to the test set.
+"""
+
+    with open(LOG_FILE, "a", encoding="utf-8") as f:
+        f.write(log_entry)
+
+
 
 # ============================================================
 # MAIN
 # ============================================================
 if __name__ == "__main__":
-    log_raw_data()
-    log_mat_data()
-    log_train_test_split()
-    log_segmentation()
-    print("✅ Project log updated (raw → mat → split → segmentation)")
+    import sys
+
+    if len(sys.argv) < 2:
+        print("Usage: python log_run.py [raw | mat | split | segment | augment]")
+        sys.exit(1)
+
+    stage = sys.argv[1].lower()
+
+    if stage == "raw":
+        log_raw_data()
+    elif stage == "mat":
+        log_mat_data()
+    elif stage == "split":
+        log_train_test_split()
+    elif stage == "segment":
+        log_segmentation()
+    elif stage == "augment":
+        log_augmentation()
+    else:
+        print("Unknown stage. Use: raw | mat | split | segment | augment")
+
+
