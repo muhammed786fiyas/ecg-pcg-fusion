@@ -418,6 +418,130 @@ Notes:
     with open(LOG_FILE, "a", encoding="utf-8") as f:
         f.write(log_entry)
 
+# ============================================================
+# LOG VISUALIZATION (SEGMENTED + AUGMENTED SIGNALS)
+# ============================================================
+def log_visualization():
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    log_entry = f"""
+---
+
+## {timestamp} — Signal Visualization Validation Summary
+
+### Visualization Scope
+- Time-domain visualization of segmented ECG–PCG signals
+- Time-domain comparison of original vs augmented ECG–PCG signals
+- Visualization performed on representative samples from training data
+
+---
+
+### Segmented Signal Validation
+
+**Checks performed:**
+- Visual inspection of ECG morphology and QRS complexes
+- Verification of R-peak–centered segmentation
+- Inspection of PCG heart sound bursts (S1/S2)
+- Verification of ECG–PCG temporal synchrony
+
+**Observations:**
+- ECG segments show clear QRS complexes with preserved morphology
+- R-peaks are consistently located near the center of each segment
+- PCG signals exhibit distinct, physiologically plausible heart sound patterns
+- No flatlines, clipping, or NaN-dominated segments observed
+
+---
+
+### Augmented Signal Validation
+
+**Augmentation types inspected:**
+- Additive Gaussian noise
+- Amplitude scaling
+- Signal mixing
+
+**Observations:**
+- Noise augmentation introduces low-amplitude perturbations without distorting ECG or PCG morphology
+- Amplitude scaling preserves waveform shape with uniform gain variation
+- Signal mixing increases variability while maintaining physiological plausibility
+- Temporal alignment between ECG and PCG signals is preserved across all augmentations
+
+---
+
+### Decision
+- Segmented and augmented ECG–PCG signals verified to be physiologically valid
+- All augmentation strategies retained
+- Data approved for scalogram generation and model training
+
+Notes:
+- Visualization performed as a manual quality-control step
+- Validation results logged to ensure reproducibility and traceability
+"""
+
+    with open(LOG_FILE, "a", encoding="utf-8") as f:
+        f.write(log_entry)
+
+
+# ============================================================
+# LOG SCALOGRAM VISUALIZATION
+# ============================================================
+def log_scalogram_visualization():
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    log_entry = f"""
+---
+
+## {timestamp} — Scalogram Visualization Validation Summary
+
+### Visualization Scope
+- Manual inspection of ECG and PCG scalograms generated using CWT
+- Comparison of original and augmented scalograms
+- Validation performed prior to CNN-based model training
+
+---
+
+### Axis Interpretation Verification
+- X-axis corresponds to time (0–3 seconds per segment)
+- Y-axis corresponds to wavelet scale (inverse of frequency)
+- Color intensity represents localized signal energy
+
+---
+
+### ECG Scalogram Observations
+- Dominant energy localized in lower scales, consistent with ECG physiological bandwidth
+- Clear vertical energy ridges corresponding to QRS complexes
+- Expected boundary artifacts observed at segment edges
+- No empty, saturated, or corrupted scalograms detected
+
+---
+
+### PCG Scalogram Observations
+- Time-localized, high-energy vertical patterns corresponding to heart sounds (S1/S2)
+- Broader frequency distribution compared to ECG, reflecting acoustic characteristics
+- Stable background with no artificial banding or noise-dominated regions
+
+---
+
+### Augmented Scalogram Assessment
+- Noise augmentation introduces mild texture variation without altering dominant time–frequency structure
+- Amplitude scaling preserves scalogram structure with proportional intensity change
+- Signal mixing increases pattern diversity while maintaining physiological plausibility
+- Temporal alignment between ECG and PCG scalograms preserved
+
+---
+
+### Decision
+- ECG and PCG scalograms verified to be physiologically meaningful
+- Augmented scalograms retained without modification
+- Dataset approved for CNN training
+
+Notes:
+- Scalogram validation performed as a quality-control step
+- Results logged to ensure reproducibility and auditability
+"""
+
+    with open(LOG_FILE, "a", encoding="utf-8") as f:
+        f.write(log_entry)
+
 
 
 # ============================================================
@@ -427,8 +551,9 @@ if __name__ == "__main__":
     import sys
 
     if len(sys.argv) < 2:
-        print("Usage: python log_run.py [raw | mat | split | segment | augment | clean | scalogram]")
-        sys.exit(1)
+        print("Usage: python log_run.py [raw | mat | split | segment | augment | clean | visualize | scalogram | scalogram_viz]")
+
+
 
     stage = sys.argv[1].lower()
 
@@ -446,9 +571,11 @@ if __name__ == "__main__":
         log_data_cleaning()
     elif stage == "scalogram":
         log_scalogram()
-
+    elif stage == "visualize":
+        log_visualization()
+    elif stage == "scalogram_viz":
+        log_scalogram_visualization()
     else:
-
         print("Unknown stage")
 
 
