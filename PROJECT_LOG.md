@@ -266,15 +266,34 @@ Notes:
 - Augmentation parameters were fixed across all experiments.
 - No augmentation was applied to the test set.
 
+
 ---
 
-## 2026-01-17 23:08:18 — Data Cleaning Summary (NaN Removal)
+## 2026-01-18 05:52:28 — Data Cleaning Summary (NaN Removal)
 
-**Issue detected:**
-- PCG segments with >90% NaN values
-- ECG signals verified to contain no NaN-only segments
+### Quality Check
+- Dataset-wide NaN scan on ECG and PCG signals
+- Segment marked invalid if >90% of PCG samples were NaN
 
-**Affected records:**
+### Findings
+- ECG: No invalid segments detected (TRAIN / TEST)
+- PCG: NaN-contaminated segments detected in both TRAIN and TEST
+
+---
+
+### TRAIN Data Cleaning
+
+**Segment-level**
+- Original segments: 2271
+- Removed (PCG NaNs): 173
+- Clean segments retained: 2098
+
+**Augmented data**
+- Original augmented samples: 9084
+- Removed augmented samples: 692
+- Clean augmented samples retained: 8392
+
+**Affected TRAIN records:**
 - a0014
 - a0027
 - a0028
@@ -295,14 +314,68 @@ Notes:
 - a0361
 - a0395
 
-**Actions taken:**
+---
+
+### TEST Data Cleaning
+
+- Original segments: 959
+- Removed (PCG NaNs): 79
+- Clean segments retained: 880
+
+**Removed TEST segments (summary):**
+- a0018: 5 segments
+- a0185: 10 segments
+- a0204: 9 segments
+- a0261: 10 segments
+- a0311: 8 segments
+- a0314: 6 segments
+- a0320: 11 segments
+- a0337: 9 segments
+- a0347: 6 segments
+- a0400: 5 segments
+
+---
+
+### Actions Taken
 - Removed invalid segmented `.mat` files
 - Removed all augmented variants (orig / noise / scale / mix)
-- Removed corresponding entries from:
-  - train_segment_labels.csv
-  - train_augmented_labels.csv
-- Removed already-generated scalograms linked to invalid segments
+- Removed corresponding entries from label files
+- Removed scalograms linked to invalid segments
 
 Notes:
-- Invalid signals were excluded to preserve signal integrity
+- TEST data was not augmented
 - Cleaning performed before final scalogram generation
+
+---
+
+## 2026-01-18 05:53:49 — Scalogram Generation Summary
+
+**Input data:**
+- Cleaned augmented ECG–PCG segments
+- Invalid segments excluded prior to scalogram generation
+
+**Time–frequency representation:**
+- Continuous Wavelet Transform (CWT)
+
+**Wavelet configuration:**
+- ECG:
+  - Wavelet: Complex Morlet (cmor1.5-1.0)
+  - Scales: 20–500 (≈0.5–40 Hz)
+- PCG:
+  - Wavelet: Real Morlet (morl)
+  - Scales: 7–130 (≈20–250 Hz)
+
+**Image settings:**
+- Output size: 224 × 224 pixels
+- Format: PNG
+- Separate directories for ECG and PCG
+
+**Processing details:**
+- Scalogram generation is resume-safe (skip-if-exists enabled)
+- Partial generation supported
+- No downsampling applied
+- Consistent configuration used across the dataset
+
+Notes:
+- Scalograms corresponding to removed segments were deleted
+- Final dataset integrity preserved before model training

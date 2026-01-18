@@ -7,7 +7,7 @@ from datetime import datetime
 # ============================================================
 # CONFIGURATION
 # ============================================================
-LOG_FILE = "PROJECT_LOG.md"
+LOG_FILE = r"E:\PROJECTS\CARDIAC-PROJECT-UPDATED\PROJECT_LOG.md"
 
 RAW_DATA_DIR = r"E:\PROJECTS\CARDIAC-PROJECT-UPDATED\DATASET\1-PHYSIONET RAW DATA\training-a"
 MAT_DATA_DIR = r"E:\PROJECTS\CARDIAC-PROJECT-UPDATED\DATASET\2-MATLAB DATA"
@@ -282,40 +282,90 @@ Notes:
     with open(LOG_FILE, "a", encoding="utf-8") as f:
         f.write(log_entry)
 
+
 # ============================================================
-# LOG DATA CLEANING (NaN REMOVAL)
+# LOG DATA CLEANING (NaN REMOVAL — TRAIN + TEST)
 # ============================================================
 def log_data_cleaning():
-    removed_records = [
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    # ---------------- TRAIN STATS ----------------
+    train_segmented_total = 2271
+    train_segmented_removed = 173
+    train_segmented_clean = 2098
+
+    train_augmented_total = 9084
+    train_augmented_removed = 692
+    train_augmented_clean = 8392
+
+    train_removed_records = [
         "a0014","a0027","a0028","a0045","a0055","a0057","a0068","a0070",
         "a0075","a0118","a0160","a0163","a0179","a0250","a0274","a0303",
         "a0315","a0361","a0395"
     ]
 
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    # ---------------- TEST STATS ----------------
+    test_segmented_total = 959
+    test_segmented_removed = 79
+    test_segmented_clean = 880
+
+    test_removed_summary = {
+        "a0018": 5, "a0185": 10, "a0204": 9, "a0261": 10,
+        "a0311": 8, "a0314": 6, "a0320": 11, "a0337": 9,
+        "a0347": 6, "a0400": 5
+    }
 
     log_entry = f"""
 ---
 
 ## {timestamp} — Data Cleaning Summary (NaN Removal)
 
-**Issue detected:**
-- PCG segments with >90% NaN values
-- ECG signals verified to contain no NaN-only segments
+### Quality Check
+- Dataset-wide NaN scan on ECG and PCG signals
+- Segment marked invalid if >90% of PCG samples were NaN
 
-**Affected records:**
-{chr(10).join(['- ' + r for r in removed_records])}
+### Findings
+- ECG: No invalid segments detected (TRAIN / TEST)
+- PCG: NaN-contaminated segments detected in both TRAIN and TEST
 
-**Actions taken:**
+---
+
+### TRAIN Data Cleaning
+
+**Segment-level**
+- Original segments: {train_segmented_total}
+- Removed (PCG NaNs): {train_segmented_removed}
+- Clean segments retained: {train_segmented_clean}
+
+**Augmented data**
+- Original augmented samples: {train_augmented_total}
+- Removed augmented samples: {train_augmented_removed}
+- Clean augmented samples retained: {train_augmented_clean}
+
+**Affected TRAIN records:**
+{chr(10).join(['- ' + r for r in train_removed_records])}
+
+---
+
+### TEST Data Cleaning
+
+- Original segments: {test_segmented_total}
+- Removed (PCG NaNs): {test_segmented_removed}
+- Clean segments retained: {test_segmented_clean}
+
+**Removed TEST segments (summary):**
+{chr(10).join([f"- {k}: {v} segments" for k, v in test_removed_summary.items()])}
+
+---
+
+### Actions Taken
 - Removed invalid segmented `.mat` files
 - Removed all augmented variants (orig / noise / scale / mix)
-- Removed corresponding entries from:
-  - train_segment_labels.csv
-  - train_augmented_labels.csv
-- Removed already-generated scalograms linked to invalid segments
+- Removed corresponding entries from label files
+- Removed scalograms linked to invalid segments
 
 Notes:
-- Invalid signals were excluded to preserve signal integrity
+- TEST data was not augmented
 - Cleaning performed before final scalogram generation
 """
 
@@ -398,6 +448,7 @@ if __name__ == "__main__":
         log_scalogram()
 
     else:
-        print("Unknown stag")
+
+        print("Unknown stage")
 
 
