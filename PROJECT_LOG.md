@@ -480,3 +480,74 @@ Notes:
 Notes:
 - Scalogram validation performed as a quality-control step
 - Results logged to ensure reproducibility and auditability
+
+---
+
+## Ablation Study: ECG-only vs PCG-only vs ECG–PCG Fusion
+**Timestamp:** 2026-01-22 20:37:11
+
+### Strategy
+- Performed a controlled ablation study to quantify the individual and combined contributions of ECG and PCG modalities.
+- Three models were trained under identical conditions:
+  1. ECG-only CNN
+  2. PCG-only CNN
+  3. Dual-branch ECG–PCG fusion CNN
+- Same data splits, loss function, optimizer, and early-stopping criterion were used to ensure fair comparison.
+
+### Model Architecture
+- **Backbone (shared across all models):**
+  - 4 convolutional blocks per branch
+  - Each block: Conv2D → BatchNorm → ReLU → MaxPooling
+  - Channel progression: 3 → 32 → 64 → 128 → 256
+  - Adaptive average pooling to obtain fixed-length feature vectors
+
+- **ECG-only model:**
+  - Single CNN branch operating on ECG scalograms
+  - Global pooled feature vector (256-D) passed to classifier
+
+- **PCG-only model:**
+  - Single CNN branch operating on PCG scalograms
+  - Identical architecture to ECG-only model
+
+- **ECG–PCG fusion model:**
+  - Two parallel CNN branches (one for ECG, one for PCG)
+  - Feature-level fusion via concatenation (256 + 256 → 512-D)
+  - Fully connected classifier: Linear → ReLU → Dropout → Linear (binary output)
+
+### Data Leakage Prevention
+- Patient-wise split performed **before segmentation**.
+- All segmented variants and augmented versions of a base sample were constrained to the **same split**.
+- Validation set contains **original (non-augmented) samples only**.
+- Training set excludes all originals and augmentations corresponding to validation base IDs.
+- Test set is strictly held out and never used for model selection.
+
+### Training Configuration
+- Input: CWT scalograms (ECG: complex Morlet; PCG: real Morlet).
+- Loss: Class-weighted BCEWithLogitsLoss to address class imbalance.
+- Optimizer: Adam.
+- Mixed-precision (AMP) training on GPU.
+- Early stopping based on validation ROC–AUC.
+
+### Test Set Results (Held-out)
+- **ECG–PCG Fusion Model**:
+  - Accuracy: 0.782
+  - F1-score: 0.837
+  - ROC–AUC: 0.817
+
+- **ECG-only Model**:
+  - Accuracy: 0.763
+  - F1-score: 0.823
+  - ROC–AUC: 0.795
+
+- **PCG-only Model**:
+  - Accuracy: 0.641
+  - F1-score: 0.728
+  - ROC–AUC: 0.647
+
+### Interpretation
+- ECG-only model provides a strong unimodal baseline.
+- PCG-only model shows limited standalone discriminative power.
+- ECG–PCG fusion consistently outperforms unimodal models, confirming complementary information capture.
+- Performance gains are obtained under a strict, leakage-free protocol.
+
+---

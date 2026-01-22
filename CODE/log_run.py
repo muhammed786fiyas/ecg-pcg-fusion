@@ -542,6 +542,118 @@ Notes:
     with open(LOG_FILE, "a", encoding="utf-8") as f:
         f.write(log_entry)
 
+def log_ablation_study():
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    """
+    Logs the ablation study (ECG-only, PCG-only, ECG–PCG fusion),
+    including strategy, architecture, leakage prevention, and results.
+    """
+
+    LOG_FILE = r"E:\PROJECTS\CARDIAC-PROJECT-UPDATED\PROJECT_LOG.md"
+
+    log = []
+    log.append("## Ablation Study: ECG-only vs PCG-only vs ECG–PCG Fusion\n")
+    log.append(f"**Timestamp:** {timestamp}\n\n")
+
+    # --------------------------------------------------
+    # Strategy
+    # --------------------------------------------------
+    log.append("### Strategy\n")
+    log.append(
+        "- Performed a controlled ablation study to quantify the individual and combined "
+        "contributions of ECG and PCG modalities.\n"
+        "- Three models were trained under identical conditions:\n"
+        "  1. ECG-only CNN\n"
+        "  2. PCG-only CNN\n"
+        "  3. Dual-branch ECG–PCG fusion CNN\n"
+        "- Same data splits, loss function, optimizer, and early-stopping criterion were used "
+        "to ensure fair comparison.\n"
+    )
+
+    # --------------------------------------------------
+    # Model Architecture
+    # --------------------------------------------------
+    log.append("\n### Model Architecture\n")
+    log.append(
+        "- **Backbone (shared across all models):**\n"
+        "  - 4 convolutional blocks per branch\n"
+        "  - Each block: Conv2D → BatchNorm → ReLU → MaxPooling\n"
+        "  - Channel progression: 3 → 32 → 64 → 128 → 256\n"
+        "  - Adaptive average pooling to obtain fixed-length feature vectors\n\n"
+        "- **ECG-only model:**\n"
+        "  - Single CNN branch operating on ECG scalograms\n"
+        "  - Global pooled feature vector (256-D) passed to classifier\n\n"
+        "- **PCG-only model:**\n"
+        "  - Single CNN branch operating on PCG scalograms\n"
+        "  - Identical architecture to ECG-only model\n\n"
+        "- **ECG–PCG fusion model:**\n"
+        "  - Two parallel CNN branches (one for ECG, one for PCG)\n"
+        "  - Feature-level fusion via concatenation (256 + 256 → 512-D)\n"
+        "  - Fully connected classifier: Linear → ReLU → Dropout → Linear (binary output)\n"
+    )
+
+    # --------------------------------------------------
+    # Data Leakage Prevention
+    # --------------------------------------------------
+    log.append("\n### Data Leakage Prevention\n")
+    log.append(
+        "- Patient-wise split performed **before segmentation**.\n"
+        "- All segmented variants and augmented versions of a base sample were constrained to the **same split**.\n"
+        "- Validation set contains **original (non-augmented) samples only**.\n"
+        "- Training set excludes all originals and augmentations corresponding to validation base IDs.\n"
+        "- Test set is strictly held out and never used for model selection.\n"
+    )
+
+    # --------------------------------------------------
+    # Training Configuration
+    # --------------------------------------------------
+    log.append("\n### Training Configuration\n")
+    log.append(
+        "- Input: CWT scalograms (ECG: complex Morlet; PCG: real Morlet).\n"
+        "- Loss: Class-weighted BCEWithLogitsLoss to address class imbalance.\n"
+        "- Optimizer: Adam.\n"
+        "- Mixed-precision (AMP) training on GPU.\n"
+        "- Early stopping based on validation ROC–AUC.\n"
+    )
+
+    # --------------------------------------------------
+    # Test Results
+    # --------------------------------------------------
+    log.append("\n### Test Set Results (Held-out)\n")
+    log.append(
+        "- **ECG–PCG Fusion Model**:\n"
+        "  - Accuracy: 0.782\n"
+        "  - F1-score: 0.837\n"
+        "  - ROC–AUC: 0.817\n\n"
+        "- **ECG-only Model**:\n"
+        "  - Accuracy: 0.763\n"
+        "  - F1-score: 0.823\n"
+        "  - ROC–AUC: 0.795\n\n"
+        "- **PCG-only Model**:\n"
+        "  - Accuracy: 0.641\n"
+        "  - F1-score: 0.728\n"
+        "  - ROC–AUC: 0.647\n"
+    )
+
+    # --------------------------------------------------
+    # Interpretation
+    # --------------------------------------------------
+    log.append("\n### Interpretation\n")
+    log.append(
+        "- ECG-only model provides a strong unimodal baseline.\n"
+        "- PCG-only model shows limited standalone discriminative power.\n"
+        "- ECG–PCG fusion consistently outperforms unimodal models, confirming complementary information capture.\n"
+        "- Performance gains are obtained under a strict, leakage-free protocol.\n"
+    )
+
+    log.append("\n---\n")
+
+    with open(LOG_FILE, "a", encoding="utf-8") as f:
+        f.writelines(log)
+
+
+
 
 
 # ============================================================
@@ -551,7 +663,7 @@ if __name__ == "__main__":
     import sys
 
     if len(sys.argv) < 2:
-        print("Usage: python log_run.py [raw | mat | split | segment | augment | clean | visualize | scalogram | scalogram_viz]")
+        print("Usage: python log_run.py [raw | mat | split | segment | augment | clean | visualize | scalogram | scalogram_viz | ablation_study]")
 
 
 
@@ -575,6 +687,8 @@ if __name__ == "__main__":
         log_visualization()
     elif stage == "scalogram_viz":
         log_scalogram_visualization()
+    elif stage== "ablation_study":
+        log_ablation_study()
     else:
         print("Unknown stage")
 
