@@ -27,3 +27,9 @@ dataset/
 # ======================
 .DS_Store
 Thumbs.db
+
+# ======================
+# Trained Models
+# ======================
+trained_models/
+*.pth
