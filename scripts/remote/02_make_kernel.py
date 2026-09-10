@@ -165,15 +165,25 @@ def seed_checkpoints(models_dir):
     those checkpoints are shipped as a second Kaggle dataset and copied in here
     before training starts.
     """
+    # Match on actual .pth files, not on directory names. scripts/modeling/ also
+    # contains ecg_only/ and pcg_only/ directories - holding training scripts,
+    # not checkpoints - and matching those found a "checkpoint dataset" with
+    # nothing in it.
     source = ""
-    for current, directories, files in os.walk("/kaggle/input"):
+    for current, directories, _ in os.walk("/kaggle/input"):
         if "ecg_only" in directories and "pcg_only" in directories:
-            source = current
-            break
+            has_weights = False
+            for probe_root, _, probe_files in os.walk(os.path.join(current, "ecg_only")):
+                if any(name.endswith(".pth") for name in probe_files):
+                    has_weights = True
+                    break
+            if has_weights:
+                source = current
+                break
         if current.count(os.sep) > 6:
             directories[:] = []
     if source == "":
-        print("no checkpoint dataset found under /kaggle/input")
+        print("no directory under /kaggle/input holds ecg_only/**/*.pth checkpoints")
         return False
 
     print("seeding checkpoints from " + source)
