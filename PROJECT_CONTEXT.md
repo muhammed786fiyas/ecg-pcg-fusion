@@ -96,6 +96,16 @@ takes far longer to trigger. It also explains the jump in kernel runtime.
 9. Reconcile the GPU ledger from the fetched kernel logs (see below), then
    finalise this file, tag the milestone, write the summary (§15.14).
 
+**Known limitation to state in the paper — Contribution 1 is confounded.**
+Holding the CWT scales fixed across wavelets (as the brief requires) does *not*
+hold the frequency band fixed, because each wavelet has its own centre
+frequency. At these scales `cmor1.5-1.0` covers 4-100 Hz on ECG while `mexh`
+covers 1-25 Hz - a 3.2x spread. So the wavelet comparison confounds wavelet
+*shape* with frequency *coverage*. The measured band is printed per row in
+`reports/figures/wavelet_table.md` and the caption says so outright. Describe it
+as a comparison of wavelets at fixed scales, and name a frequency-matched study
+as future work. Full table in `docs/logs/tasks/2-features.md`.
+
 **Compute budget — read the ledger carefully.** The queue that is running
 records *wall clock*, which over-counts GPU time by ~4.5× because it includes
 Kaggle's scheduling queue. True GPU time per `ecg_only` fold is ~8 min, not

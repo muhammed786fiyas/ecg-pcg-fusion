@@ -112,12 +112,40 @@ because `db4` is a *discrete orthogonal* wavelet and is not a member of
 `mexh`. This is a documented substitution, **not** a silent swap: it must appear
 in the paper's Method section. Do not try to force `db4` through `pywt.cwt`.
 
-### Scale ranges are held fixed across wavelets
+### Scale ranges are held fixed across wavelets — and what that costs
 
-ECG scales `np.arange(20, 501)` (≈0.5–40 Hz), PCG scales `np.arange(7, 131)`
-(≈20–250 Hz), for every wavelet in the ablation. Retuning scales per wavelet is
-a different and much larger experiment, and mixing the two would confound
-Contribution 1.
+ECG scales `np.arange(20, 501)`, PCG scales `np.arange(7, 131)`, for every
+wavelet in the ablation, as the brief requires. Retuning scales per wavelet is a
+different and much larger experiment.
+
+**But holding the scales fixed does NOT hold the frequency band fixed, and
+Contribution 1 must say so.** Every wavelet has its own centre frequency, and
+`f = f_c / (scale · dt)`, so the same scales land on different Hz:
+
+| wavelet | centre freq | ECG band at fixed scales | PCG band at fixed scales |
+|---|---|---|---|
+| `cmor1.5-1.0` | 1.0000 | 4.0 – 100.0 Hz | 15.4 – 285.7 Hz |
+| `morl` | 0.8125 | 3.2 – 81.2 Hz | 12.5 – 232.1 Hz |
+| `gaus4` | 0.5000 | 2.0 – 50.0 Hz | 7.7 – 142.9 Hz |
+| `mexh` | 0.2500 | **1.0 – 25.0 Hz** | 3.8 – 71.4 Hz |
+
+The spread is **3.2×**. `mexh` at these scales sees 1–25 Hz on ECG, where
+`cmor1.5-1.0` sees 4–100 Hz. QRS energy sits at roughly 5–40 Hz, so `mexh`
+barely reaches the top of it while `cmor` covers it comfortably.
+
+**Consequence for the paper.** If `mexh` scores worse, the experiment cannot by
+itself say whether that is the wavelet's *shape* or its *frequency coverage* —
+the two are confounded by construction. So:
+
+- The measured band is printed **per row** in `reports/figures/wavelet_table.md`,
+  computed by `measured_band()` in `03_build_results_tables.py`.
+- The table caption states the confound explicitly.
+- The paper must describe Contribution 1 as a comparison of **wavelets at fixed
+  scales**, not as a frequency-matched comparison of wavelet shape, and should
+  name a frequency-matched study (per-wavelet scales) as future work.
+
+This is a limitation to state, not to hide. A reviewer who knows CWT will check
+the centre frequencies immediately.
 
 ## Data notes & gotchas
 

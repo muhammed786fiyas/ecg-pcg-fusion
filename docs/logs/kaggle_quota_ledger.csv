@@ -3,3 +3,4 @@ date,kernel,family,config,fold,state,hours,weekly_total
 2026-09-10 15:27,ecgpcg-ecg-only-default-cv-fold3,ecg_only,default,3,complete,0.0805,0.1645
 2026-09-10 17:08,ecgpcg-ecg-only-default-cv-fold0,ecg_only,default,0,complete,0.5933,0.5933
 2026-09-10 17:10,ecgpcg-ecg-only-default-cv-fold1,ecg_only,default,1,complete,0.6091,1.2024
+2026-09-10 17:17,ecgpcg-ecg-only-default-cv-fold2,ecg_only,default,2,complete,0.102,1.3044

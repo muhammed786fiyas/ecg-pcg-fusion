@@ -19,6 +19,8 @@ import os
 import mlflow
 import numpy as np
 import pandas as pd
+import pywt
+import yaml
 from dotenv import load_dotenv
 
 MAIN_FAMILY_ORDER = [
@@ -107,7 +109,28 @@ def build_main_table(runs):
     return pd.DataFrame(rows)
 
 
-def build_wavelet_table(runs):
+def measured_band(wavelet, scale_start, scale_stop, fs):
+    """The frequency band a wavelet actually covers at the given fixed scales.
+
+    This is reported per row because holding the SCALES fixed across wavelets
+    does NOT hold the frequency BAND fixed: every wavelet has its own centre
+    frequency, so the same scales map to different Hz. At fs=2000 with the ECG
+    scales used here, cmor1.5-1.0 covers 4-100 Hz while mexh covers 1-25 Hz - a
+    3.2x difference. Any wavelet comparison at fixed scales is therefore partly
+    a frequency-band comparison, and the table has to say so.
+    """
+    scales = np.arange(scale_start, scale_stop)
+    frequencies = pywt.scale2frequency(wavelet, scales) * fs
+    return f"{round(float(frequencies.min()), 1)}-{round(float(frequencies.max()), 1)}"
+
+
+def load_scale_params(params_path):
+    with open(params_path) as handle:
+        params = yaml.safe_load(handle)
+    return params["features"]["scalogram"]
+
+
+def build_wavelet_table(runs, scale_params, fs):
     """Contribution 1. dual_cnn across scalogram configs, so the only thing that
     varies is the input representation."""
     if "params.scalogram_config" not in runs.columns:
@@ -126,7 +149,11 @@ def build_wavelet_table(runs):
             {
                 "Config": config,
                 "ECG wavelet": ecg_wavelet,
+                "ECG band (Hz)": measured_band(
+                    ecg_wavelet, scale_params["ecg_scale_start"], scale_params["ecg_scale_stop"], fs),
                 "PCG wavelet": pcg_wavelet,
+                "PCG band (Hz)": measured_band(
+                    pcg_wavelet, scale_params["pcg_scale_start"], scale_params["pcg_scale_stop"], fs),
                 "Folds": len(config_runs),
                 "Seg AUC": format_mean_std(config_runs["metrics.seg_auc"].tolist() if "metrics.seg_auc" in config_runs.columns else []),
                 "Patient AUC": format_mean_std(config_runs["metrics.patient_auc"].tolist() if "metrics.patient_auc" in config_runs.columns else []),
@@ -194,6 +221,8 @@ def main():
     parser.add_argument("--output-dir", default="reports/figures")
     parser.add_argument("--tracking-uri", default="")
     parser.add_argument("--experiment", default="")
+    parser.add_argument("--params", default="params.yaml")
+    parser.add_argument("--fs", type=int, default=2000)
     args = parser.parse_args()
 
     load_dotenv()
@@ -221,13 +250,23 @@ def main():
     )
 
     write_table(
-        build_wavelet_table(folds),
+        build_wavelet_table(folds, load_scale_params(args.params), args.fs),
         os.path.join(args.output_dir, "wavelet_table"),
         "Contribution 1 - CWT mother wavelet sensitivity",
         "Architecture is dual_cnn throughout, so the only thing that varies is the "
-        "input representation. Scale ranges are held fixed across wavelets. "
-        "`gaus4` replaces the originally planned `db4`, which pywt.cwt cannot use "
-        "because db4 is a discrete orthogonal wavelet - see docs/logs/tasks/2-features.md.",
+        "input representation. `gaus4` replaces the originally planned `db4`, which "
+        "pywt.cwt cannot use because db4 is a discrete orthogonal wavelet - see "
+        "docs/logs/tasks/2-features.md.\n\n"
+        "**Important caveat, stated plainly.** The scale ranges are held fixed "
+        "across wavelets, but that does NOT hold the frequency band fixed: each "
+        "wavelet has its own centre frequency, so the same scales map to different "
+        "Hz. The measured band is given per row, and it varies by up to 3.2x "
+        "(cmor1.5-1.0 covers 4-100 Hz on ECG where mexh covers 1-25 Hz). This "
+        "comparison is therefore of *wavelets at fixed scales*, which confounds "
+        "wavelet shape with frequency coverage - it is NOT a frequency-matched "
+        "comparison of wavelet shape. A matched study would need per-wavelet "
+        "scales, which is a larger experiment; note it as a limitation and as "
+        "future work rather than claiming the shape effect in isolation.",
     )
 
     write_table(
