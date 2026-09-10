@@ -148,6 +148,24 @@ is quoted. Details in `docs/logs/tasks/5-mlops.md`.
   Docker images have not been built, and the Gradio Spaces deploy is documented
   rather than attempted (no token was provided).
 
+**Repository history was rewritten on 2026-09-10.** Two purges, both with the
+remote backed up first:
+1. A 430 MB Kaggle staging payload reached a commit because `.gitignore` had
+   `.kaggle_staging/` while the directory was `.kaggle_staging_ablation/`.
+   GitHub rejects any file over 100 MB, so the push failed outright.
+2. `DATASET/PHYSIONET` (13 319 objects) from the *original* pre-rebuild commits,
+   at the owner's request. **Repo went from 189 MB to 1.9 MB.**
+
+Two commits that contained nothing but `DATASET` files were pruned as empty
+(40 → 38 on `main`). The pre-rewrite remote history is preserved on the local
+branch **`pre-rebuild-backup`** and tag `pre-rebuild-remote`; note those no
+longer carry the DATASET blobs either, since keeping them would have defeated
+the purge. The raw data itself is untouched at
+`data/raw/physionet2016_training_a/` and in the owner's separate folder copy.
+
+**Pushing is now authorised** — the owner amended the brief's "never push" rule.
+See `CLAUDE.md`.
+
 **Known open items**
 - `tests/test_api.py` was written after the rest of the suite, once
   `scripts/serving/app.py` existed. It is green.

@@ -34,8 +34,23 @@ environment from whatever invokes `dvc`.
 
 ## Git
 
-Local commits and tags only. **Never run `git push`.** The owner reviews and
-pushes. Commit after each numbered milestone in `KICKOFF_PROMPT.md` §15.
+Commit after each numbered milestone in `KICKOFF_PROMPT.md` §15.
+
+**Pushing is authorised.** The owner amended the original brief on 2026-09-10:
+the kickoff prompt said "never push, I review and push myself"; the standing
+instruction now is to push after committing. Push to `origin main` as work
+completes.
+
+Two cautions that came out of getting this wrong once:
+- **Never commit a rebuild-on-demand archive.** `.gitignore` covers
+  `.kaggle_staging*/`, `.kaggle_kernels/`, `payload.zip` and `*.zip`. A 430 MB
+  payload once reached a commit because the pattern was `.kaggle_staging/` and
+  the directory was `.kaggle_staging_ablation/`. GitHub hard-rejects any file
+  over 100 MB.
+- **A history rewrite diverges from the remote.** If `filter-branch` or similar
+  is ever needed again, back the remote up to a local branch first
+  (`git branch <name> origin/main`) before force-pushing, so the pre-rewrite
+  commits survive.
 
 ### Definition of done — check this before every `git commit`
 
