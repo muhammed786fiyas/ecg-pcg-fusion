@@ -5,8 +5,17 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
-.env/
 .conda/
+.pytest_cache/
+*.egg-info/
+
+# ======================
+# Secrets / environment
+# ======================
+.env
+kaggle.json
+kernel-metadata.json
+.kaggle/
 
 # ======================
 # VS Code
@@ -14,22 +23,20 @@ __pycache__/
 .vscode/
 
 # ======================
-# Data files (DO NOT COMMIT)
+# DVC-tracked trees (see per-directory .gitignore files)
 # ======================
-dataset/
-*.mat
-*.dat
-*.hea
-*.wav
+/data/
+/models/
+/reports/
+
+# ======================
+# Model checkpoints
+# ======================
+*.pth
+*.pt
 
 # ======================
 # OS files
 # ======================
 .DS_Store
 Thumbs.db
-
-# ======================
-# Trained Models
-# ======================
-trained_models/
-*.pth
