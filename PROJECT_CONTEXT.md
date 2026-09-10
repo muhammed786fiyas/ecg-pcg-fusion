@@ -54,25 +54,33 @@ only **2 concurrent batch GPU sessions**, which is why
 `scripts/remote/05_run_queue.py` exists.
 
 **In progress right now**
-- Regenerating the default scalograms after the CWT boundary-artifact fix (see
-  Environment notes). All previously generated scalograms and the 4 completed
-  GPU kernels were discarded and are being rebuilt.
+- Default scalograms **regenerated and verified** after the CWT boundary-artifact
+  fix. Manifests rebuilt against the new `row_index.csv`. Nothing else is
+  running; the Kaggle dataset still holds the *old, unpadded* scalograms and
+  must be re-synced before any training restarts.
+
+**Verification of the fix — both checks passed**
+- Numeric, via `verify_pad.py`: ECG edge/interior energy ratio **19.29 → 0.80**,
+  interior mean **4.6 → 60.5** of 255.
+- Visual: the ECG scalogram now shows three low-frequency energy concentrations
+  (the cardiac cycles) with high-frequency QRS transients beneath, aligned in
+  time with the PCG's S1/S2 bursts. No edge bands. The visual check is not
+  optional here — the numeric QC gates passed while the images were wrong.
 
 **Next up, in order**
-1. Visually verify the regenerated ECG scalogram shows QRS structure — the
-   defect below passed every numeric gate and was only visible in a rendered
-   figure.
-2. Rebuild manifests, re-sync the Kaggle dataset, restart the 30-job queue
-   (§15.8: `ecg_only`, `pcg_only`, `dual_cnn`, `cbam_fusion`,
-   `cross_attn_fusion`, `cross_attn_resnet18`).
-3. `warm_start_fusion` — must run *after* the unimodal folds, since it needs
+1. Re-sync the Kaggle dataset with the padded scalograms and the
+   negative-control manifests (the uploaded copy is stale).
+2. Restart the 30-job queue (§15.8: `ecg_only`, `pcg_only`, `dual_cnn`,
+   `cbam_fusion`, `cross_attn_fusion`, `cross_attn_resnet18`).
+3. Regenerate the 6 non-default wavelet configs — **all were discarded**, and
+   any future config must be checked with `verify_pad.py` before use.
+4. `warm_start_fusion` — must run *after* the unimodal folds, since it needs
    their checkpoints shipped as a second Kaggle dataset.
-4. Wavelet ablation: regenerate the 6 non-default configs, sync as a second
-   dataset version, 30 runs (§15.9).
-5. Split-protocol negative controls, arms B and C (§15.10).
-6. Patient aggregation and Grad-CAM on the headline model (§15.11).
-7. Results tables and all figures (§15.12).
-8. Finalise this file, tag the milestone, write the summary (§15.14).
+5. Wavelet ablation: sync configs as a second dataset version, 30 runs (§15.9).
+6. Split-protocol negative controls, arms B and C (§15.10).
+7. Patient aggregation and Grad-CAM on the headline model (§15.11).
+8. Results tables and all figures (§15.12).
+9. Finalise this file, tag the milestone, write the summary (§15.14).
 
 **Pending / not yet started**
 - Everything from §15.8 onward. MLOps (§15.13) is written and tested but the
