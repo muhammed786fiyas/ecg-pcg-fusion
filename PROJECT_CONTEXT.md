@@ -85,6 +85,17 @@ The spread across folds is large (0.72–0.94 segment AUC). With only 81 test
 records per fold that is unsurprising, but it means single-fold numbers are not
 meaningful and the ± must always be reported.
 
+**Headline interim finding — concatenation fusion does not beat ECG alone.**
+Paired per-fold comparison against `ecg_only` (same folds, same seed), patient
+AUC: `pcg_only` is -0.2117, losing all 5 folds (p = 0.001); `dual_cnn` is
+-0.0136, losing 4 of 5 folds (p = 0.334). PCG alone is clearly weaker; naive
+fusion shows no advantage over ECG alone. The old pipeline reported the opposite
+ordering (fusion 0.817 > ECG 0.795) from a patient-level-leaking split, and that
+ordering does not reproduce under a clean record-level split. Whether *any*
+fusion scheme beats the ECG branch is what the remaining families exist to
+answer. Full analysis in `docs/logs/tasks/3-modeling.md`; script is
+`scripts/evaluation/05_paired_model_comparison.py`.
+
 **A contamination incident, caught and corrected.** A cleanup command chained
 with `&&` short-circuited on a busy file, so the rest of the chain never ran and
 pre-fix MLflow runs survived the rebuild, sitting alongside their post-fix

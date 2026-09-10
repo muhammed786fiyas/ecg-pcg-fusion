@@ -6,7 +6,49 @@ Seven architectures (`ecg_only`, `pcg_only`, `dual_cnn`, `warm_start_fusion`,
 and the split-protocol negative control.
 
 ## Completed
-- (pending the modeling stage)
+- `ecg_only`, `pcg_only`, `dual_cnn` complete at 5-fold record-level CV on the
+  padded scalograms. See "Interim result" below.
+
+## Interim result — concatenation fusion does not beat ECG alone
+
+Patient-level AUC, 5-fold record-level CV, mean ± std across folds:
+
+| family | segment AUC | patient AUC |
+|---|---|---|
+| `ecg_only` | 0.8355 ± 0.0878 | **0.8639 ± 0.0945** |
+| `pcg_only` | 0.6237 ± 0.0841 | 0.6523 ± 0.1027 |
+| `dual_cnn` | 0.8353 ± 0.0809 | 0.8504 ± 0.0953 |
+
+Those error bars overlap heavily, which is why the comparison is done **paired**:
+every family sees the same folds, the same data and the same seed, so the fold
+is a matched unit.
+
+Paired against `ecg_only`, patient AUC:
+
+| comparison | mean diff | folds won | paired t p |
+|---|---|---|---|
+| `pcg_only` − `ecg_only` | **−0.2117** | 0 of 5 | 0.001 |
+| `dual_cnn` − `ecg_only` | −0.0136 | 1 of 5 | 0.334 |
+
+**PCG alone is clearly and significantly worse than ECG alone.** That part is
+unambiguous.
+
+**Naive concatenation fusion shows no advantage over ECG alone** — it is very
+slightly behind on average and loses on 4 of 5 folds. With k = 5 the test has
+almost no power, so the honest statement is *this experiment cannot distinguish
+them*, not *they are identical*. But there is certainly no evidence here that
+concatenating a much weaker PCG branch onto the ECG branch helps.
+
+**Why this matters to the paper.** The old pipeline reported fusion 0.817 >
+ECG-only 0.795, i.e. fusion helping — from a validation split that leaked at the
+patient level. Under a clean record-level split that ordering does not reproduce.
+It also sets up the question the remaining families exist to answer: does *any*
+fusion scheme (CBAM, cross-attention, warm start, pretrained ResNet-18) beat the
+ECG branch on its own? If none does, that is the finding, and it lines up with
+Kıymık (Physiol Meas 2026) reporting no reliable advantage for attention fusion
+on this same dataset.
+
+Reported by `scripts/evaluation/05_paired_model_comparison.py`.
 
 ## Key decisions
 
