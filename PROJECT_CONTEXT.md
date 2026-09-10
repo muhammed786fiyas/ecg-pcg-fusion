@@ -17,18 +17,74 @@ cross-modal attention.**
 
 ## Status as of 2026-09-10
 
-**Done**
-- Step 0: clean slate. Every derived artifact deleted; only the raw PhysioNet
-  Training-A records survive, at `data/raw/physionet2016_training_a/`.
-- Step 1: repo skeleton, `params.yaml`, `.env`, `requirements.txt`, `CLAUDE.md`,
-  this file.
+Numbering below follows `KICKOFF_PROMPT.md` §15.
 
-**Next up**
-- Data pipeline `01`–`06`, then scalograms + manifests, then the leakage test
-  suite, then a local CPU smoke run, then Kaggle offload.
+**Done — steps 1–7, all committed locally (nothing pushed)**
 
-**Pending**
-- Everything from §8 onward in `KICKOFF_PROMPT.md` §15.
+| § | Work | Outcome |
+|---|---|---|
+| 1 | Clear the slate | Only `data/raw/physionet2016_training_a/` survives |
+| 2 | Skeleton, `params.yaml`, `dvc init`, `.env`, `CLAUDE.md`, this file | Python 3.11.16 recorded; `numpy<2` pinned for `neurokit2==0.2.7` |
+| 3 | Data pipeline `01`–`06`, run on the full dataset | 409 → **405 records** → **3752 segments** → **15 008 augmented rows** |
+| 4 | Scalograms (default config) + manifests | Two uint8 memmaps, `(15008, 224, 224)`, 718 MB each |
+| 5 | Test suite, green *before* any training | **101 tests** passing; ruff clean |
+| 6 | Local CPU smoke test | Checkpoint + MLflow parent/child runs + metrics row all produced |
+| 7 | Kaggle offload + dry run + merge | Full round trip proven: push → poll → fetch → merge → results table |
+
+**Gate counts (measured, not estimated)** — full table in
+`docs/logs/tasks/1-data-pipeline.md`.
+
+| Gate | In | Out | Dropped |
+|---|---|---|---|
+| `01_convert` | 409 | 405 | 4 (the declared PCG-only records) |
+| `02_record_qc` | 405 | 405 | 0 |
+| `03_segment` | 405 records | 3752 segments | 0 records |
+| `04_segment_qc` | 3752 | 3752 | 0 (194 repaired by interpolation) |
+| `05_assign_folds` | 405 | dev 243/60/102; CV 5 × (275/49/81) | — |
+| `06_augment` | 3752 | 15 008 rows | — |
+
+Label balance: **117 normal / 288 abnormal** records (71.1% abnormal);
+1087 / 2665 at segment level. Abnormal share per CV test fold: 0.716, 0.716,
+0.716, 0.704, 0.704.
+
+**Measured throughput.** ~500 s/epoch on this CPU vs **~27 s/epoch on a Kaggle
+T4** — an 18× speedup. Full 5-fold CV across all seven families would be ~120 h
+locally, so the GPU offload is load-bearing, not an optimisation. Kaggle allows
+only **2 concurrent batch GPU sessions**, which is why
+`scripts/remote/05_run_queue.py` exists.
+
+**In progress right now**
+- Regenerating the default scalograms after the CWT boundary-artifact fix (see
+  Environment notes). All previously generated scalograms and the 4 completed
+  GPU kernels were discarded and are being rebuilt.
+
+**Next up, in order**
+1. Visually verify the regenerated ECG scalogram shows QRS structure — the
+   defect below passed every numeric gate and was only visible in a rendered
+   figure.
+2. Rebuild manifests, re-sync the Kaggle dataset, restart the 30-job queue
+   (§15.8: `ecg_only`, `pcg_only`, `dual_cnn`, `cbam_fusion`,
+   `cross_attn_fusion`, `cross_attn_resnet18`).
+3. `warm_start_fusion` — must run *after* the unimodal folds, since it needs
+   their checkpoints shipped as a second Kaggle dataset.
+4. Wavelet ablation: regenerate the 6 non-default configs, sync as a second
+   dataset version, 30 runs (§15.9).
+5. Split-protocol negative controls, arms B and C (§15.10).
+6. Patient aggregation and Grad-CAM on the headline model (§15.11).
+7. Results tables and all figures (§15.12).
+8. Finalise this file, tag the milestone, write the summary (§15.14).
+
+**Pending / not yet started**
+- Everything from §15.8 onward. MLOps (§15.13) is written and tested but the
+  Docker images have not been built, and the Gradio Spaces deploy is documented
+  rather than attempted (no token was provided).
+
+**Known open items**
+- `tests/test_api.py` was written after the rest of the suite, once
+  `scripts/serving/app.py` existed. It is green.
+- The GPU quota ledger (`docs/logs/kaggle_quota_ledger.csv`) was reset along
+  with the discarded kernels; ~0.16 GPU-hours were spent on work that was
+  thrown away.
 
 ---
 
@@ -184,8 +240,48 @@ and only for the ~30 segments needed for paper figures and Grad-CAM overlays.
 Models take 1-channel input; the pretrained ResNet-18 branch replicates the
 single channel to 3 at load time.
 
+**The CWT boundary artifact — the most consequential defect found so far.**
+The first rendered paper figure showed the ECG scalogram as two bright vertical
+bands at the edges with near-black in between. Measured: the outer columns
+carried **~19× the interior energy**, and after per-image min/max scaling the
+real cardiac content sat at a mean of **4.6/255** with **85% of pixels below
+26/255**. PCG was unaffected (ratio ~1.0).
+
+The cause is the CWT cone of influence. A wavelet at scale *s* has effective
+support of a few times *s*; the ECG scales run to 500, so at the top of the
+range the wavelet is as long as the 6000-sample window itself and the boundary
+effect swamps the transform. PCG escapes it because its scales stop at 130.
+
+Fixed by reflect-padding the signal by `4 × max(scale)` before transforming and
+cropping the magnitude back to the real window. A measured pad sweep gives
+edge/interior 19.29 → 0.63 and interior mean 4.6 → 59.3 by pad = 1000,
+converged by 2000 — **about 13× more usable dynamic range**, at ~1.5× the CWT
+cost.
+
+This cost 4 completed GPU kernels and 3 scalogram configs, all discarded. That
+was still the cheap moment: the bug would not merely have cost accuracy, it
+would have produced a **false scientific conclusion**. Grad-CAM would have
+highlighted the boundary artifact, and Contribution 2 would have reported "the
+model does not attend to the QRS time–frequency region" as a physiological
+finding rather than as an artifact of our own preprocessing.
+
+**Every numeric QC gate passed while this was wrong.** The stage checks for
+constant images and non-finite values and found nothing. It took rendering one
+PNG and looking at it. Full working in `docs/logs/tasks/2-features.md`.
+
 **`numpy<2` is pinned** because `neurokit2==0.2.7` predates the NumPy 2 ABI
 break.
+
+**`conda run` crashes when its stdout is piped** and the output is large — an
+unhandled conda plugin error. It killed a 1.4 GB Kaggle upload midway, leaving
+an empty dataset registered. For long or noisy commands call the interpreter
+directly: `C:/Users/muham/.conda/envs/ecg_pcg/python.exe` and
+`.../envs/ecg_pcg/Scripts/kaggle.exe`.
+
+**Kaggle mounts datasets at `/kaggle/input/datasets/<owner>/<slug>`**, not
+`/kaggle/input/<slug>`, and `mlflow` is absent from the default image. Both are
+handled in `scripts/remote/02_make_kernel.py`; the rest of the Kaggle gotchas
+are in `docs/logs/tasks/5-mlops.md`.
 
 **Grad-CAM is hand-rolled** rather than taking the `grad-cam` package: it is
 ~40 lines of forward/backward hooks, and keeping it inline preserves the

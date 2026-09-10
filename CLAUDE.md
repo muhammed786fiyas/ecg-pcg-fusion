@@ -37,6 +37,32 @@ environment from whatever invokes `dvc`.
 Local commits and tags only. **Never run `git push`.** The owner reviews and
 pushes. Commit after each numbered milestone in `KICKOFF_PROMPT.md` §15.
 
+### Definition of done — check this before every `git commit`
+
+> **A step is not complete until `PROJECT_CONTEXT.md`'s Status section and
+> `docs/logs/daily/` are updated. Both go in the SAME commit as the step's work,
+> before running `git commit`.**
+
+Not "at the end", not "when there's a natural pause". In the same commit.
+
+This is tied to the commit because committing is the one thing that reliably
+happens at every step. §14 of the brief already asked for these to be kept
+current, and it drifted anyway: `PROJECT_CONTEXT.md` sat seven steps stale,
+still listing the data pipeline as "next up" long after the pipeline, the
+scalograms, the tests and the Kaggle offload were all done. Documentation that
+depends on remembering to do it does not survive a long session or a context
+compaction.
+
+What "updated" means:
+- **`PROJECT_CONTEXT.md` Status** — what is actually done, what is in progress
+  *right now*, what is next in order, and any open item a future session would
+  otherwise rediscover the hard way. Real measured numbers, not estimates.
+- **`docs/logs/daily/DAYn_DD-MM-YYYY.md`** — Work done / Key decisions /
+  Discussed-not-decided / Blockers / Next. Add deviations from the brief and
+  why, as they happen.
+- If the step changed a decision or turned up a gotcha, the relevant
+  `docs/logs/tasks/n-*.md` gets it too.
+
 ---
 
 ## The split rules — the top correctness requirement
