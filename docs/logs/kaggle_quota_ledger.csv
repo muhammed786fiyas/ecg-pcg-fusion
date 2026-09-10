@@ -6,3 +6,10 @@ date,kernel,family,config,fold,state,hours,weekly_total
 2026-09-10 17:17,ecgpcg-ecg-only-default-cv-fold2,ecg_only,default,2,complete,0.102,1.3044
 2026-09-10 17:21,ecgpcg-ecg-only-default-cv-fold3,ecg_only,default,3,complete,0.1666,1.471
 2026-09-10 17:22,ecgpcg-ecg-only-default-cv-fold4,ecg_only,default,4,complete,0.0636,1.5346
+2026-09-10 17:26,ecgpcg-pcg-only-default-cv-fold0,pcg_only,default,0,complete,0.0458,1.5804
+2026-09-10 17:28,ecgpcg-pcg-only-default-cv-fold1,pcg_only,default,1,complete,0.0798,1.6602
+2026-09-10 17:31,ecgpcg-pcg-only-default-cv-fold2,pcg_only,default,2,complete,0.064,1.7242
+2026-09-10 17:36,ecgpcg-pcg-only-default-cv-fold3,pcg_only,default,3,complete,0.1027,1.8269
+2026-09-10 17:40,ecgpcg-pcg-only-default-cv-fold4,pcg_only,default,4,complete,0.1199,1.9468
+2026-09-10 17:47,ecgpcg-dual-cnn-default-cv-fold0,dual_cnn,default,0,complete,0.1673,2.1141
+2026-09-10 17:49,ecgpcg-dual-cnn-default-cv-fold1,dual_cnn,default,1,complete,0.1409,2.255

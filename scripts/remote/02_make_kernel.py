@@ -54,27 +54,39 @@ def describe_inputs():
         print("  " + current + " -> dirs=" + str(sorted(directories)[:8]) + " files=" + str(sorted(files)[:8]))
 
 
-def find_dataset_root():
-    """Locate the mounted dataset without assuming where Kaggle put it.
+def find_roots_containing(relative_path):
+    """Every mounted dataset directory that contains the given relative path.
 
     Kaggle has mounted datasets at both /kaggle/input/<slug> and
     /kaggle/input/datasets/<owner>/<slug> depending on runtime version, so
-    searching for the marker beats hardcoding either. Looks for the directory
-    that actually contains scalograms/ or payload.zip.
+    searching for a marker beats hardcoding either. Searching per marker rather
+    than once for the whole payload also lets the scalograms and the manifests
+    live in DIFFERENT datasets - which is what keeps the 8 GB of ablation
+    configs from forcing a re-upload of the 1.4 GB default set.
     """
-    candidates = []
-    for current, directories, files in os.walk("/kaggle/input"):
-        if "payload.zip" in files or "scalograms" in directories:
-            candidates.append(current)
-        # The tree under scalograms/ is large and cannot contain the marker.
-        if os.path.basename(current) == "scalograms":
+    found = []
+    for current, directories, _ in os.walk("/kaggle/input"):
+        if os.path.exists(os.path.join(current, relative_path)):
+            found.append(current)
+            directories[:] = []
+            continue
+        # The trees under these are large and cannot contain a top-level marker.
+        if os.path.basename(current) in ("scalograms", "manifests", "manifests_negative_control"):
             directories[:] = []
         if current.count(os.sep) > 6:
             directories[:] = []
-    if len(candidates) == 0:
+    found.sort(key=len)
+    return found
+
+
+def find_dataset_root():
+    """Backwards-compatible single-root resolution, for the zipped-payload case."""
+    roots = find_roots_containing("scalograms")
+    if len(roots) == 0:
+        roots = find_roots_containing("payload.zip")
+    if len(roots) == 0:
         return ""
-    candidates.sort(key=len)
-    return candidates[0]
+    return roots[0]
 
 
 def unpack():
@@ -199,17 +211,34 @@ def main():
     if not os.path.exists(script):
         raise SystemExit("QC FAIL: training script not found at " + script)
 
-    manifest_root = os.path.join(data_root, MANIFEST_SUBDIR)
-    if not os.path.isdir(manifest_root):
-        raise SystemExit("QC FAIL: manifest directory not found: " + manifest_root)
+    # The config's scalograms and the manifests may live in different datasets.
+    scalogram_roots = find_roots_containing(os.path.join("scalograms", SCALOGRAM_CONFIG))
+    if len(scalogram_roots) == 0:
+        if os.path.isdir(os.path.join(data_root, "scalograms", SCALOGRAM_CONFIG)):
+            scalogram_roots = [data_root]
+        else:
+            raise SystemExit(
+                "QC FAIL: no mounted dataset contains scalograms/" + SCALOGRAM_CONFIG
+            )
+    scalogram_root = os.path.join(scalogram_roots[0], "scalograms")
+    print("scalograms resolved to " + scalogram_root)
+
+    manifest_roots = find_roots_containing(MANIFEST_SUBDIR)
+    if len(manifest_roots) == 0:
+        if os.path.isdir(os.path.join(data_root, MANIFEST_SUBDIR)):
+            manifest_roots = [data_root]
+        else:
+            raise SystemExit("QC FAIL: no mounted dataset contains " + MANIFEST_SUBDIR)
+    manifest_root = os.path.join(manifest_roots[0], MANIFEST_SUBDIR)
+    print("manifests resolved to " + manifest_root)
 
     argv = [
         script,
         "--protocol", PROTOCOL,
         "--fold", str(FOLD),
         "--scalogram-config", SCALOGRAM_CONFIG,
-        "--scalogram-root", os.path.join(data_root, "scalograms"),
-        "--manifest-root", os.path.join(data_root, MANIFEST_SUBDIR),
+        "--scalogram-root", scalogram_root,
+        "--manifest-root", manifest_root,
         "--model-root", models_dir,
         "--report-root", reports_dir,
         "--params", os.path.join(data_root, "params.yaml"),
