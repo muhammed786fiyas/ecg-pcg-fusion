@@ -1,0 +1,100 @@
+stages:
+
+  convert:
+    cmd: python scripts/data/01_convert.py
+      --raw-dir data/raw/physionet2016_training_a
+      --output-dir data/interim/records
+      --index-out data/interim/records_index.csv
+    deps:
+      - scripts/data/01_convert.py
+      - data/raw/physionet2016_training_a
+    params:
+      - global_seed
+      - data.convert
+      - smoke
+    outs:
+      - data/interim/records
+      - data/interim/records_index.csv
+      - data/interim/excluded_records.csv
+
+  record_qc:
+    cmd: python scripts/data/02_record_qc.py
+      --records-dir data/interim/records
+      --index-in data/interim/records_index.csv
+      --index-out data/interim/records_index_qc.csv
+    deps:
+      - scripts/data/02_record_qc.py
+      - data/interim/records
+      - data/interim/records_index.csv
+    params:
+      - data.record_qc
+    outs:
+      - data/interim/records_index_qc.csv
+      - data/interim/record_qc_dropped.csv
+
+  segment:
+    cmd: python scripts/data/03_segment.py
+      --records-dir data/interim/records
+      --index-in data/interim/records_index_qc.csv
+      --output-dir data/interim/segments
+      --index-out data/interim/segments_index.csv
+    deps:
+      - scripts/data/03_segment.py
+      - data/interim/records
+      - data/interim/records_index_qc.csv
+    params:
+      - data.segment
+    outs:
+      - data/interim/segments
+      - data/interim/segments_index.csv
+      - data/interim/segment_records_dropped.csv
+
+  segment_qc:
+    cmd: python scripts/data/04_segment_qc.py
+      --segments-dir data/interim/segments
+      --output-dir data/interim/segments_qc
+      --index-in data/interim/segments_index.csv
+      --index-out data/interim/segments_index_qc.csv
+    deps:
+      - scripts/data/04_segment_qc.py
+      - data/interim/segments
+      - data/interim/segments_index.csv
+    params:
+      - data.segment_qc
+    outs:
+      - data/interim/segments_qc
+      - data/interim/segments_index_qc.csv
+      - data/interim/segment_qc_dropped.csv
+      - data/interim/segment_qc_repaired.csv
+
+  assign_folds:
+    cmd: python scripts/data/05_assign_folds.py
+      --index-in data/interim/records_index_qc.csv
+      --output data/processed/manifests/fold_assignments.csv
+    deps:
+      - scripts/data/05_assign_folds.py
+      - data/interim/records_index_qc.csv
+    params:
+      - global_seed
+      - split
+      - evaluation.cv_folds
+      - smoke
+    outs:
+      - data/processed/manifests/fold_assignments.csv
+
+  augment:
+    cmd: python scripts/data/06_augment.py
+      --segments-dir data/interim/segments_qc
+      --index-in data/interim/segments_index_qc.csv
+      --output-dir data/interim/augmented
+      --index-out data/interim/augmented_index.csv
+    deps:
+      - scripts/data/06_augment.py
+      - data/interim/segments_qc
+      - data/interim/segments_index_qc.csv
+    params:
+      - global_seed
+      - data.augment
+    outs:
+      - data/interim/augmented
+      - data/interim/augmented_index.csv

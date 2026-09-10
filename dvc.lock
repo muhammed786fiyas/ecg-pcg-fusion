@@ -1,0 +1,235 @@
+schema: '2.0'
+stages:
+  convert:
+    cmd: python scripts/data/01_convert.py --raw-dir 
+      data/raw/physionet2016_training_a --output-dir data/interim/records 
+      --index-out data/interim/records_index.csv
+    deps:
+    - path: data/raw/physionet2016_training_a
+      hash: md5
+      md5: bb923bd93e07a850c9df9feb8e84e5ab.dir
+      size: 106485466
+      nfiles: 1232
+    - path: scripts/data/01_convert.py
+      hash: md5
+      md5: 41b466fc60fd0e5fcee577640395e5b6
+      size: 5565
+    params:
+      params.yaml:
+        data.convert:
+          pcg_only_records:
+          - a0041
+          - a0117
+          - a0220
+          - a0233
+          expected_fs: 2000
+        global_seed: 42
+        smoke:
+          enabled: false
+          n_records: 12
+          epochs: 2
+          cv_folds: 1
+    outs:
+    - path: data/interim/excluded_records.csv
+      hash: md5
+      md5: 306773a1c173b5ebcd8db7e468922c5b
+      size: 106
+    - path: data/interim/records
+      hash: md5
+      md5: f3075fddd85461484acb6f9d90986dfb.dir
+      size: 93254745
+      nfiles: 405
+    - path: data/interim/records_index.csv
+      hash: md5
+      md5: 03345208a2abc57491948d7e45cd7470
+      size: 8130
+  record_qc:
+    cmd: python scripts/data/02_record_qc.py --records-dir data/interim/records 
+      --index-in data/interim/records_index.csv --index-out 
+      data/interim/records_index_qc.csv
+    deps:
+    - path: data/interim/records
+      hash: md5
+      md5: f3075fddd85461484acb6f9d90986dfb.dir
+      size: 93254745
+      nfiles: 405
+    - path: data/interim/records_index.csv
+      hash: md5
+      md5: 03345208a2abc57491948d7e45cd7470
+      size: 8130
+    - path: scripts/data/02_record_qc.py
+      hash: md5
+      md5: d5b0d05a6eadbc90fc80d7bc76f31887
+      size: 3837
+    params:
+      params.yaml:
+        data.record_qc:
+          max_nan_fraction: 0.5
+          min_std: 1e-08
+          min_duration_s: 3.0
+    outs:
+    - path: data/interim/record_qc_dropped.csv
+      hash: md5
+      md5: 81051bcc2cf1bedf378224b0a93e2877
+      size: 2
+    - path: data/interim/records_index_qc.csv
+      hash: md5
+      md5: 03345208a2abc57491948d7e45cd7470
+      size: 8130
+  segment:
+    cmd: python scripts/data/03_segment.py --records-dir data/interim/records 
+      --index-in data/interim/records_index_qc.csv --output-dir 
+      data/interim/segments --index-out data/interim/segments_index.csv
+    deps:
+    - path: data/interim/records
+      hash: md5
+      md5: f3075fddd85461484acb6f9d90986dfb.dir
+      size: 93254745
+      nfiles: 405
+    - path: data/interim/records_index_qc.csv
+      hash: md5
+      md5: 03345208a2abc57491948d7e45cd7470
+      size: 8130
+    - path: scripts/data/03_segment.py
+      hash: md5
+      md5: 7042709f25a3de268e5afb98d4e16418
+      size: 5644
+    params:
+      params.yaml:
+        data.segment:
+          window_s: 3.0
+          ecg_peak_method: pantompkins1985
+    outs:
+    - path: data/interim/segment_records_dropped.csv
+      hash: md5
+      md5: 81051bcc2cf1bedf378224b0a93e2877
+      size: 2
+    - path: data/interim/segments
+      hash: md5
+      md5: f74767796d770b53ed7242350ac1b98c.dir
+      size: 93930095
+      nfiles: 3752
+    - path: data/interim/segments_index.csv
+      hash: md5
+      md5: 1ed3cb7e748cd1c7b5f98a272f83b47e
+      size: 82572
+  segment_qc:
+    cmd: python scripts/data/04_segment_qc.py --segments-dir 
+      data/interim/segments --output-dir data/interim/segments_qc --index-in 
+      data/interim/segments_index.csv --index-out 
+      data/interim/segments_index_qc.csv
+    deps:
+    - path: data/interim/segments
+      hash: md5
+      md5: f74767796d770b53ed7242350ac1b98c.dir
+      size: 93930095
+      nfiles: 3752
+    - path: data/interim/segments_index.csv
+      hash: md5
+      md5: 1ed3cb7e748cd1c7b5f98a272f83b47e
+      size: 82572
+    - path: scripts/data/04_segment_qc.py
+      hash: md5
+      md5: e962e6264255ddaed49522a511e1eb43
+      size: 5793
+    params:
+      params.yaml:
+        data.segment_qc:
+          max_nan_fraction: 0.9
+    outs:
+    - path: data/interim/segment_qc_dropped.csv
+      hash: md5
+      md5: 81051bcc2cf1bedf378224b0a93e2877
+      size: 2
+    - path: data/interim/segment_qc_repaired.csv
+      hash: md5
+      md5: 789da78f6cda35c7215b51a1b6b6eab5
+      size: 6188
+    - path: data/interim/segments_index_qc.csv
+      hash: md5
+      md5: 1ed3cb7e748cd1c7b5f98a272f83b47e
+      size: 82572
+    - path: data/interim/segments_qc
+      hash: md5
+      md5: 209eeef54cdf4e373c46a55a20343e33.dir
+      size: 93936127
+      nfiles: 3752
+  assign_folds:
+    cmd: python scripts/data/05_assign_folds.py --index-in 
+      data/interim/records_index_qc.csv --output 
+      data/processed/manifests/fold_assignments.csv
+    deps:
+    - path: data/interim/records_index_qc.csv
+      hash: md5
+      md5: 03345208a2abc57491948d7e45cd7470
+      size: 8130
+    - path: scripts/data/05_assign_folds.py
+      hash: md5
+      md5: 25ccfe240bc7885739365ef65d965e54
+      size: 8023
+    params:
+      params.yaml:
+        evaluation.cv_folds: 5
+        global_seed: 42
+        smoke:
+          enabled: false
+          n_records: 12
+          epochs: 2
+          cv_folds: 1
+        split:
+          dev_train_frac: 0.6
+          dev_val_frac: 0.15
+          dev_test_frac: 0.25
+          cv_inner_val_frac: 0.15
+    outs:
+    - path: data/processed/manifests/fold_assignments.csv
+      hash: md5
+      md5: 62fc789e92f237d5e3981892510b119e
+      size: 18707
+  augment:
+    cmd: python scripts/data/06_augment.py --segments-dir 
+      data/interim/segments_qc --index-in data/interim/segments_index_qc.csv 
+      --output-dir data/interim/augmented --index-out 
+      data/interim/augmented_index.csv
+    deps:
+    - path: data/interim/segments_index_qc.csv
+      hash: md5
+      md5: 1ed3cb7e748cd1c7b5f98a272f83b47e
+      size: 82572
+    - path: data/interim/segments_qc
+      hash: md5
+      md5: 209eeef54cdf4e373c46a55a20343e33.dir
+      size: 93936127
+      nfiles: 3752
+    - path: scripts/data/06_augment.py
+      hash: md5
+      md5: 0f34311b24a8817d90f41ef5160b0c87
+      size: 7757
+    params:
+      params.yaml:
+        data.augment:
+          variants:
+          - orig
+          - noise
+          - scale
+          - combined
+          ecg_noise_std_frac: 0.01
+          pcg_noise_std: 0.02
+          ecg_scale_range:
+          - 0.9
+          - 1.1
+          pcg_scale_range:
+          - 0.85
+          - 1.15
+          pcg_shift_ms: 50
+        global_seed: 42
+    outs:
+    - path: data/interim/augmented
+      hash: md5
+      md5: 32bd2c4eaa65f57d6a38e39c6a05df85.dir
+      size: 510567846
+      nfiles: 15008
+    - path: data/interim/augmented_index.csv
+      hash: md5
+      md5: 079e4185558ebdd7b7b7f4026f5ee1e7
+      size: 720439
