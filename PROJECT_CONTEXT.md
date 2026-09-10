@@ -70,18 +70,27 @@ only **2 concurrent batch GPU sessions**, which is why
   time with the PCG's S1/S2 bursts. No edge bands. The visual check is not
   optional here — the numeric QC gates passed while the images were wrong.
 
-**Early evidence the padding fix helped, not just changed the pictures**
+**First complete family — `ecg_only`, 5-fold record-level CV, post-fix**
 
-| | pre-fix (`ecg_only` fold1) | post-fix (`ecg_only` fold0) |
+| fold | segment AUC | patient AUC |
 |---|---|---|
-| segment AUC | 0.792 | **0.841** |
-| patient AUC | 0.798 | **0.870** |
-| epochs before early stopping | 8 | **30** |
+| 0 | 0.8406 | 0.8703 |
+| 1 | 0.7769 | 0.8231 |
+| 2 | 0.7241 | 0.7279 |
+| 3 | 0.9446 | 0.9708 |
+| 4 | 0.8911 | 0.9276 |
+| **mean ± std** | **0.8355 ± 0.0878** | **0.8639 ± 0.0945** |
 
-Different folds, so this is indicative rather than a controlled comparison. But
-the direction is consistent with the mechanism: with the artifact gone the
-images carry real signal, so validation AUC keeps improving and early stopping
-takes far longer to trigger. It also explains the jump in kernel runtime.
+The spread across folds is large (0.72–0.94 segment AUC). With only 81 test
+records per fold that is unsurprising, but it means single-fold numbers are not
+meaningful and the ± must always be reported.
+
+**A contamination incident, caught and corrected.** A cleanup command chained
+with `&&` short-circuited on a busy file, so the rest of the chain never ran and
+pre-fix MLflow runs survived the rebuild, sitting alongside their post-fix
+replacements. Six stale runs were deleted; the table above is post-fix only.
+`03_build_results_tables.py` now hard-fails on duplicate (family, config, fold)
+runs, which is the visible symptom of exactly this. See the daily log.
 
 **Next up, in order**
 1. ~~Re-sync the Kaggle dataset~~ — done, v3 carries the padded scalograms and

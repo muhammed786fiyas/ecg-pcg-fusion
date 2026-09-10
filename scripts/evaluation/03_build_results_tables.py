@@ -53,6 +53,39 @@ def fetch_runs(tracking_uri, experiment_name):
     return runs
 
 
+def check_no_duplicate_folds(runs):
+    """Hard-fail if the same (family, config, fold) has more than one run.
+
+    A duplicate fold means the experiment store holds results from more than one
+    version of the data or code, and averaging them silently produces a number
+    that corresponds to no actual experiment. This exact contamination happened
+    once: a cleanup command chained with && short-circuited on a busy file, so
+    pre-fix runs survived a rebuild and sat alongside their post-fix
+    replacements. The mean over "7 folds" of a 5-fold CV looked entirely normal.
+
+    Cheap to check, and the failure it catches is invisible otherwise.
+    """
+    if "params.fold" not in runs.columns:
+        return
+    key_columns = [c for c in ["params.family_label", "params.scalogram_config", "params.fold"] if c in runs.columns]
+    if len(key_columns) == 0:
+        return
+    counts = runs.groupby(key_columns).size()
+    duplicates = counts[counts > 1]
+    if len(duplicates) == 0:
+        return
+    lines = [f"  {key} appears {count} times" for key, count in duplicates.items()]
+    detail = "\n".join(lines)
+    raise SystemExit(
+        "QC FAIL: duplicate runs for the same (family, config, fold):\n"
+        + detail
+        + "\n\nThe store holds results from more than one version of the data or code. "
+        "Averaging them would produce a number corresponding to no real experiment. "
+        "Delete the stale run directories under models/mlflow_tracking/<experiment_id>/ "
+        "before building tables."
+    )
+
+
 def child_runs(runs):
     """Per-fold runs only. Parents hold the aggregates and would double-count."""
     if "params.fold" not in runs.columns:
@@ -235,6 +268,7 @@ def main():
 
     runs = fetch_runs(tracking_uri, experiment_name)
     folds = child_runs(runs)
+    check_no_duplicate_folds(folds)
     print(f"{len(runs)} runs total, {len(folds)} per-fold runs")
     print(f"family labels present: {family_labels(folds)}")
 
