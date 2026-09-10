@@ -17,3 +17,14 @@ date,kernel,family,config,fold,state,hours,weekly_total
 2026-09-10 18:01,ecgpcg-dual-cnn-default-cv-fold3,dual_cnn,default,3,complete,0.1666,2.6065
 2026-09-10 18:11,ecgpcg-dual-cnn-default-cv-fold4,dual_cnn,default,4,complete,0.1477,2.7542
 2026-09-10 18:12,ecgpcg-cbam-fusion-default-cv-fold0,cbam_fusion,default,0,complete,0.1791,2.9333
+2026-09-10 18:20,ecgpcg-cbam-fusion-default-cv-fold1,cbam_fusion,default,1,complete,0.1373,3.0706
+2026-09-10 18:24,ecgpcg-cbam-fusion-default-cv-fold2,cbam_fusion,default,2,complete,0.1724,3.243
+2026-09-10 18:29,ecgpcg-cbam-fusion-default-cv-fold3,cbam_fusion,default,3,complete,0.1434,3.3864
+2026-09-10 18:34,ecgpcg-cbam-fusion-default-cv-fold4,cbam_fusion,default,4,complete,0.1559,3.5423
+2026-09-10 18:37,ecgpcg-cross-attn-fusion-default-cv-fold0,cross_attn_fusion,default,0,complete,0.1187,3.661
+2026-09-10 18:41,ecgpcg-cross-attn-fusion-default-cv-fold1,cross_attn_fusion,default,1,complete,0.1052,3.7662
+2026-09-10 18:46,ecgpcg-cross-attn-fusion-default-cv-fold2,cross_attn_fusion,default,2,complete,0.1322,3.8984
+2026-09-10 18:51,ecgpcg-cross-attn-fusion-default-cv-fold3,cross_attn_fusion,default,3,complete,0.1595,4.0579
+2026-09-10 18:54,ecgpcg-cross-attn-fusion-default-cv-fold4,cross_attn_fusion,default,4,complete,0.1186,4.1765
+2026-09-10 19:00,ecgpcg-cross-attn-resnet18-default-cv-fold0,cross_attn_resnet18,default,0,complete,0.1189,4.2954
+2026-09-10 19:03,ecgpcg-cross-attn-resnet18-default-cv-fold1,cross_attn_resnet18,default,1,complete,0.1197,4.4151

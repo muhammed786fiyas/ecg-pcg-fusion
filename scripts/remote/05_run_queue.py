@@ -139,12 +139,21 @@ def status_of(reference):
 
 
 def collect(reference, job_dir, local_reports, local_models):
+    """Fetch a kernel's output and merge it, and do NOT let a noisy fetch exit
+    code skip the merge.
+
+    `kaggle kernels output` has been observed returning a non-zero exit code
+    while still delivering every file, which silently dropped a completed fold
+    from the results: the checkpoints and MLflow run sat on disk, the run never
+    reached the local store, and nothing failed loudly. The merge is the real
+    test of whether the fetch worked - it hard-fails when there are no runs - so
+    attempt it regardless and report what the merge says.
+    """
     out_dir = os.path.join(job_dir, "output")
     os.makedirs(out_dir, exist_ok=True)
     code, text = kaggle(["kernels", "output", reference, "-p", out_dir])
     if code != 0:
-        print("  WARNING: fetching output failed: " + text.strip()[:300])
-        return False
+        print("  note: kaggle output returned " + str(code) + ", merging anyway")
     merge = subprocess.run(
         [PYTHON, "scripts/remote/04_merge_results.py", "--kernel-output", out_dir,
          "--local-reports", local_reports, "--local-models", local_models],

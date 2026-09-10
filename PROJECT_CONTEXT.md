@@ -96,6 +96,13 @@ fusion scheme beats the ECG branch is what the remaining families exist to
 answer. Full analysis in `docs/logs/tasks/3-modeling.md`; script is
 `scripts/evaluation/05_paired_model_comparison.py`.
 
+**Always run `scripts/remote/06_reconcile.py` before building results tables.**
+It merges any kernel output that failed to merge and prints which (family, fold)
+pairs are missing. `kaggle kernels output` can return non-zero while delivering
+every file — seen on `cross_attn_resnet18`, whose ~280 MB checkpoints are far
+larger than the other families' — which previously skipped the merge and left a
+completed fold absent from the store with nothing failing loudly.
+
 **A contamination incident, caught and corrected.** A cleanup command chained
 with `&&` short-circuited on a busy file, so the rest of the chain never ran and
 pre-fix MLflow runs survived the rebuild, sitting alongside their post-fix

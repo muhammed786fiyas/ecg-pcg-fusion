@@ -110,6 +110,30 @@ ledger records both columns.
 accounting, so its rows over-report. Reconcile them from the fetched logs in
 `.kaggle_kernels/*/output/*.log` before quoting a total.
 
+### A fetched fold that never merged — a silent hole in the results
+
+`kaggle kernels output` has been observed **returning a non-zero exit code while
+delivering every file**. The queue treated that as a failed fetch and skipped
+the merge, so a completed fold's checkpoints and MLflow run sat on disk, absent
+from the local store, with nothing failing loudly. A results table built at that
+moment would have shown a "5-fold mean" over 4 folds.
+
+It correlates with download size: it has only happened on
+`cross_attn_resnet18`, whose 23 M-parameter checkpoints are ~90 MB (best) and
+~280 MB (last), an order of magnitude above the custom-CNN families.
+
+Two fixes:
+- `collect()` in `05_run_queue.py` now merges **regardless** of the fetch exit
+  code. The merge is the real test of whether the fetch worked, since it
+  hard-fails when there are no runs.
+- `scripts/remote/06_reconcile.py` sweeps every kernel output directory for runs
+  missing from the local store and merges them, then **prints which
+  (family, fold) pairs are still absent**. Merging is idempotent, so it is
+  always safe to re-run.
+
+**Run `06_reconcile.py` before building any results table.** An incomplete family
+averaged as if complete is exactly the kind of error a table cannot show you.
+
 ## Pending
 - DVC init and stage wiring.
 - `scripts/remote/` (sync, kernel templating, push/poll/fetch, merge).
