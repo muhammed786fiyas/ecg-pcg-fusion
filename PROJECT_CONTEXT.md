@@ -67,20 +67,41 @@ only **2 concurrent batch GPU sessions**, which is why
   time with the PCG's S1/S2 bursts. No edge bands. The visual check is not
   optional here — the numeric QC gates passed while the images were wrong.
 
+**Early evidence the padding fix helped, not just changed the pictures**
+
+| | pre-fix (`ecg_only` fold1) | post-fix (`ecg_only` fold0) |
+|---|---|---|
+| segment AUC | 0.792 | **0.841** |
+| patient AUC | 0.798 | **0.870** |
+| epochs before early stopping | 8 | **30** |
+
+Different folds, so this is indicative rather than a controlled comparison. But
+the direction is consistent with the mechanism: with the artifact gone the
+images carry real signal, so validation AUC keeps improving and early stopping
+takes far longer to trigger. It also explains the jump in kernel runtime.
+
 **Next up, in order**
-1. Re-sync the Kaggle dataset with the padded scalograms and the
-   negative-control manifests (the uploaded copy is stale).
-2. Restart the 30-job queue (§15.8: `ecg_only`, `pcg_only`, `dual_cnn`,
+1. ~~Re-sync the Kaggle dataset~~ — done, v3 carries the padded scalograms and
+   the negative-control manifests.
+2. **Running now:** the 30-job queue (§15.8: `ecg_only`, `pcg_only`, `dual_cnn`,
    `cbam_fusion`, `cross_attn_fusion`, `cross_attn_resnet18`).
-3. Regenerate the 6 non-default wavelet configs — **all were discarded**, and
-   any future config must be checked with `verify_pad.py` before use.
+3. **Running now:** regenerating the 6 non-default wavelet configs. Every config
+   is checked with `scripts/features/verify_pad.py` before it feeds training.
 4. `warm_start_fusion` — must run *after* the unimodal folds, since it needs
    their checkpoints shipped as a second Kaggle dataset.
 5. Wavelet ablation: sync configs as a second dataset version, 30 runs (§15.9).
 6. Split-protocol negative controls, arms B and C (§15.10).
 7. Patient aggregation and Grad-CAM on the headline model (§15.11).
 8. Results tables and all figures (§15.12).
-9. Finalise this file, tag the milestone, write the summary (§15.14).
+9. Reconcile the GPU ledger from the fetched kernel logs (see below), then
+   finalise this file, tag the milestone, write the summary (§15.14).
+
+**Compute budget — read the ledger carefully.** The queue that is running
+records *wall clock*, which over-counts GPU time by ~4.5× because it includes
+Kaggle's scheduling queue. True GPU time per `ecg_only` fold is ~8 min, not
+~36 min. `05_run_queue.py` has been fixed to charge GPU seconds read from the
+kernel log; the in-flight queue's rows still need reconciling before any total
+is quoted. Details in `docs/logs/tasks/5-mlops.md`.
 
 **Pending / not yet started**
 - Everything from §15.8 onward. MLOps (§15.13) is written and tested but the

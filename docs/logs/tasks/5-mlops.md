@@ -79,11 +79,36 @@ time; it does not finish. The GPU offload is load-bearing.
   float32 — the reachable path, rather than an unreachable one.
 
 ## Kaggle GPU quota ledger
-Weekly budget 30 h; stop launching new jobs at 25 h (`compute.kaggle_stop_at_hours`).
 
-| Date | Kernel slug | Config | Fold | Wall-clock | Running weekly total |
-|---|---|---|---|---|---|
-| _(none yet)_ | | | | | 0.00 h |
+Weekly budget 30 h; stop launching new jobs at 25 h
+(`compute.kaggle_stop_at_hours`). The live ledger is
+`docs/logs/kaggle_quota_ledger.csv`, written by `05_run_queue.py`.
+
+### Charge GPU time, not wall clock — a correction
+
+The first version of the ledger recorded wall clock between pushing a kernel and
+seeing a terminal status. **That is the wrong quantity.** It includes however
+long the job sat in Kaggle's scheduling queue, and Kaggle's 30 h/week budget is
+GPU *session* time.
+
+Measured on `ecgpcg-ecg-only-default-cv-fold0`:
+
+| | |
+|---|---|
+| wall clock, push to terminal | **35.6 min** |
+| true in-kernel runtime | **7.9 min** |
+| over-counting factor | **4.5×** |
+
+Charging queue wait against the quota would have halted the run at roughly a
+fifth of the real allowance, and would have put a badly wrong compute figure in
+the paper. `kernel_gpu_seconds()` now reads the true runtime from the final
+timestamp of the returned Kaggle log, falling back to wall clock when the log is
+unavailable — conservative, which is the right direction for a budget. The
+ledger records both columns.
+
+**Note:** the queue running at the time of this fix still used the old
+accounting, so its rows over-report. Reconcile them from the fetched logs in
+`.kaggle_kernels/*/output/*.log` before quoting a total.
 
 ## Pending
 - DVC init and stage wiring.

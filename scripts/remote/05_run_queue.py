@@ -23,6 +23,7 @@ e.g.
 
 import argparse
 import csv
+import glob
 import json
 import os
 import subprocess
@@ -157,11 +158,38 @@ def collect(reference, job_dir, local_reports, local_models):
     return True
 
 
+def kernel_gpu_seconds(job_dir):
+    """True in-kernel runtime, read from the returned Kaggle log.
+
+    The wall clock between push and terminal status is NOT the quota figure: it
+    includes however long the job sat in Kaggle's scheduling queue. Measured on
+    one run, wall clock was 35.6 min against 7.9 min actually spent in the
+    kernel - over-counting by 4.5x. Kaggle's 30 h/week budget is GPU session
+    time, so charging queue wait against it would stop the run at roughly a
+    fifth of the real allowance and would put a badly wrong number in the
+    paper's compute accounting.
+
+    Returns 0.0 if the log is unavailable, and the caller falls back to wall
+    clock - conservative, which is the right direction for a budget.
+    """
+    logs = glob.glob(os.path.join(job_dir, "output", "*.log"))
+    if len(logs) == 0:
+        return 0.0
+    try:
+        with open(logs[0]) as handle:
+            events = json.load(handle)
+    except (ValueError, OSError):
+        return 0.0
+    if len(events) == 0:
+        return 0.0
+    return float(events[-1].get("time", 0.0))
+
+
 def append_ledger(path, row):
     exists = os.path.exists(path)
     with open(path, "a", newline="") as handle:
         writer = csv.DictWriter(
-            handle, fieldnames=["date", "kernel", "family", "config", "fold", "state", "hours", "weekly_total"]
+            handle, fieldnames=["date", "kernel", "family", "config", "fold", "state", "hours", "wall_clock_hours", "weekly_total"]
         )
         if not exists:
             writer.writeheader()
@@ -241,13 +269,24 @@ def main():
                 still_running.append(entry)
                 continue
 
-            hours = round((time.time() - entry["started"]) / 3600.0, 4)
+            wall_hours = round((time.time() - entry["started"]) / 3600.0, 4)
+            fetched = False
+            if state == "complete":
+                fetched = collect(entry["ref"], entry["dir"], args.local_reports, args.local_models)
+
+            # Charge GPU seconds, not queue wait, against the weekly budget.
+            gpu_hours = round(kernel_gpu_seconds(entry["dir"]) / 3600.0, 4)
+            hours = gpu_hours if gpu_hours > 0 else wall_hours
             weekly_total = round(weekly_total + hours, 4)
             finished = finished + 1
-            print(f"[{state}] {entry['slug']} after {round(hours * 60, 1)} min (weekly total {round(weekly_total, 2)} h)")
+            print(
+                f"[{state}] {entry['slug']} gpu={round(hours * 60, 1)} min "
+                f"(wall {round(wall_hours * 60, 1)} min, weekly total {round(weekly_total, 2)} h)"
+            )
 
             if state == "complete":
-                collect(entry["ref"], entry["dir"], args.local_reports, args.local_models)
+                if not fetched:
+                    failed.append(entry["slug"])
             else:
                 failed.append(entry["slug"])
                 print(f"  see the Kaggle log: kaggle kernels output {entry['ref']}")
@@ -260,6 +299,7 @@ def main():
                 "fold": entry["job"]["fold"],
                 "state": state,
                 "hours": hours,
+                "wall_clock_hours": wall_hours,
                 "weekly_total": weekly_total,
             })
         running = still_running
