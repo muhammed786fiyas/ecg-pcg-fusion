@@ -53,7 +53,23 @@ locally, so the GPU offload is load-bearing, not an optimisation. Kaggle allows
 only **2 concurrent batch GPU sessions**, which is why
 `scripts/remote/05_run_queue.py` exists.
 
-**In progress right now**
+**TRAINING IS COMPLETE.** 70 kernels, 67 per-fold runs, **10.04 GPU-hours of
+the 30/week budget** — no degradation rung from §9 was needed.
+
+| block | status |
+|---|---|
+| 7 main families × 5 folds | 35/35 |
+| 7 wavelet configs × 5 folds | 35/35 |
+| negative controls (arms B, C) | 2/2 |
+
+**Contribution 1 result — the mother wavelet barely matters.** Segment AUC across
+all seven configs spans 0.819–0.853, a range of 0.034, against fold-to-fold
+noise of ±0.05–0.09. `w4_gaus4_morl` tops the table at 0.853 ± 0.054, which is
+worth an eyebrow: `gaus4` was only ever a substitute for `db4`, which `pywt.cwt`
+cannot use. Given the frequency-band confound documented below, that ranking
+cannot be attributed to wavelet shape alone.
+
+**Previously in progress**
 - **Main training queue running**: 30 jobs (6 families × 5 folds) on the padded
   scalograms. `ecg_only` folds 0–3 complete.
 - **Wavelet ablation scalograms regenerating**: w2–w6 written, w7 to go. Every
