@@ -54,10 +54,13 @@ only **2 concurrent batch GPU sessions**, which is why
 `scripts/remote/05_run_queue.py` exists.
 
 **In progress right now**
-- Default scalograms **regenerated and verified** after the CWT boundary-artifact
-  fix. Manifests rebuilt against the new `row_index.csv`. Nothing else is
-  running; the Kaggle dataset still holds the *old, unpadded* scalograms and
-  must be re-synced before any training restarts.
+- **Main training queue running**: 30 jobs (6 families × 5 folds) on the padded
+  scalograms. `ecg_only` folds 0–3 complete.
+- **Wavelet ablation scalograms regenerating**: w2–w6 written, w7 to go. Every
+  config is checked with `scripts/features/verify_pad.py` before it feeds
+  training.
+- Default scalograms regenerated and verified; manifests rebuilt; Kaggle dataset
+  re-synced (v3, padded scalograms + negative-control manifests).
 
 **Verification of the fix — both checks passed**
 - Numeric, via `verify_pad.py`: ECG edge/interior energy ratio **19.29 → 0.80**,
