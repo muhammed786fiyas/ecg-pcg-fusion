@@ -88,6 +88,40 @@ def build_payload(staging_dir, scalogram_configs, manifest_dir, params_path):
     return payload_path
 
 
+def build_checkpoint_payload(staging_dir, models_dir, families):
+    """Package the unimodal best checkpoints for warm_start_fusion.
+
+    /kaggle/working is empty at the start of every kernel, so a fold's ecg_only
+    and pcg_only checkpoints have to travel to Kaggle as their own dataset.
+    Only the _best files go - the _last files exist for resume and are three
+    times the size.
+    """
+    os.makedirs(staging_dir, exist_ok=True)
+    payload_path = os.path.join(staging_dir, PAYLOAD_NAME)
+    archive = zipfile.ZipFile(payload_path, "w", compression=zipfile.ZIP_DEFLATED, allowZip64=True)
+
+    total = 0
+    for family in families:
+        family_dir = os.path.join(models_dir, family)
+        if not os.path.isdir(family_dir):
+            raise SystemExit(f"QC FAIL: {family_dir} not found - train {family} first")
+        for root, _, files in os.walk(family_dir):
+            for name in files:
+                if not name.endswith("_best.pth"):
+                    continue
+                full = os.path.join(root, name)
+                relative = os.path.relpath(full, models_dir)
+                archive.write(full, relative)
+                total = total + 1
+    archive.close()
+
+    if total == 0:
+        raise SystemExit("QC FAIL: no _best.pth checkpoints found to package")
+    size_mb = round(os.path.getsize(payload_path) / (1024.0 * 1024.0), 1)
+    print(f"checkpoint payload: {total} files, {size_mb} MB")
+    return payload_path
+
+
 def write_metadata(staging_dir, username, slug, title):
     metadata = {
         "title": title,
@@ -117,24 +151,33 @@ def main():
     parser.add_argument("--slug", default=os.environ.get("KAGGLE_DATASET_SLUG", "ecg-pcg-fusion-scalograms"))
     parser.add_argument("--title", default="ECG-PCG fusion scalograms and manifests")
     parser.add_argument("--version-notes", default="update")
+    parser.add_argument("--checkpoints-only", action="store_true",
+                        help="package the unimodal _best checkpoints instead of scalograms")
+    parser.add_argument("--models-dir", default="models")
+    parser.add_argument("--checkpoint-families", default="ecg_only,pcg_only")
     parser.add_argument("--dry-run", action="store_true", help="build the payload but do not upload")
     args = parser.parse_args()
-
-    configs = args.scalogram_config
-    if len(configs) == 0:
-        configs = ["data/processed/scalograms/default"]
 
     print("=== 01_sync_dataset ===")
     if args.username == "":
         raise SystemExit("QC FAIL: no Kaggle username. Set KAGGLE_USERNAME in .env or pass --username")
-    for config_dir in configs:
-        if not os.path.isdir(config_dir):
-            raise SystemExit(f"QC FAIL: scalogram config dir not found: {config_dir}")
-    print(f"user={args.username} slug={args.slug} configs={configs}")
 
     if os.path.isdir(args.staging_dir):
         shutil.rmtree(args.staging_dir)
-    build_payload(args.staging_dir, configs, args.manifest_dir, args.params)
+
+    if args.checkpoints_only:
+        families = [name.strip() for name in args.checkpoint_families.split(",")]
+        print(f"user={args.username} slug={args.slug} checkpoint families={families}")
+        build_checkpoint_payload(args.staging_dir, args.models_dir, families)
+    else:
+        configs = args.scalogram_config
+        if len(configs) == 0:
+            configs = ["data/processed/scalograms/default"]
+        for config_dir in configs:
+            if not os.path.isdir(config_dir):
+                raise SystemExit(f"QC FAIL: scalogram config dir not found: {config_dir}")
+        print(f"user={args.username} slug={args.slug} configs={configs}")
+        build_payload(args.staging_dir, configs, args.manifest_dir, args.params)
     write_metadata(args.staging_dir, args.username, args.slug, args.title)
 
     if args.dry_run:

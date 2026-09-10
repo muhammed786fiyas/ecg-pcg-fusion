@@ -134,6 +134,41 @@ def install_missing():
         raise SystemExit("QC FAIL: pip install failed inside the kernel")
 
 
+def seed_checkpoints(models_dir):
+    """Copy previously trained checkpoints into the working models directory.
+
+    warm_start_fusion initialises each branch from the ecg_only and pcg_only
+    checkpoints FOR THE SAME FOLD, but /kaggle/working is empty at the start of
+    every kernel - resume state does not survive between kernel invocations. So
+    those checkpoints are shipped as a second Kaggle dataset and copied in here
+    before training starts.
+    """
+    source = ""
+    for current, directories, files in os.walk("/kaggle/input"):
+        if "ecg_only" in directories and "pcg_only" in directories:
+            source = current
+            break
+        if current.count(os.sep) > 6:
+            directories[:] = []
+    if source == "":
+        print("no checkpoint dataset found under /kaggle/input")
+        return False
+
+    print("seeding checkpoints from " + source)
+    copied = 0
+    for current, _, files in os.walk(source):
+        for name in files:
+            if not name.endswith(".pth"):
+                continue
+            relative = os.path.relpath(os.path.join(current, name), source)
+            destination = os.path.join(models_dir, relative)
+            os.makedirs(os.path.dirname(destination), exist_ok=True)
+            shutil.copy2(os.path.join(current, name), destination)
+            copied = copied + 1
+    print("seeded " + str(copied) + " checkpoints")
+    return copied > 0
+
+
 def main():
     print("=== kaggle entry: {family} {config} {fold_tag} ===")
     print("torch sees cuda:", __import__("torch").cuda.is_available())
@@ -151,6 +186,13 @@ def main():
     os.environ["MLFLOW_ALLOW_FILE_STORE"] = "true"
     os.environ["MLFLOW_EXPERIMENT_NAME"] = "ecg-pcg-fusion"
     os.environ["MLFLOW_DISABLE_AGENT_HINT"] = "1"
+
+    if FAMILY == "warm_start_fusion" and not seed_checkpoints(models_dir):
+        raise SystemExit(
+            "QC FAIL: warm_start_fusion needs the ecg_only and pcg_only checkpoints "
+            "for this fold, and no checkpoint dataset is attached. Sync them with "
+            "01_sync_dataset.py --checkpoints-only and pass --extra-dataset."
+        )
 
     script = os.path.join(data_root, "scripts", "modeling", FAMILY, "01_train.py")
     if not os.path.exists(script):
@@ -206,6 +248,8 @@ def main():
     parser.add_argument("--negative-control", action="store_true")
     parser.add_argument("--username", default=os.environ.get("KAGGLE_USERNAME", ""))
     parser.add_argument("--dataset-slug", default=os.environ.get("KAGGLE_DATASET_SLUG", "ecg-pcg-fusion-scalograms"))
+    parser.add_argument("--extra-dataset", default="",
+                        help="second dataset slug to attach, e.g. the unimodal checkpoints")
     parser.add_argument("--output-dir", default=".kaggle_kernels")
     args = parser.parse_args()
 
@@ -236,6 +280,10 @@ def main():
     with open(entry_path, "w", newline="\n") as handle:
         handle.write(entry)
 
+    dataset_sources = [args.username + "/" + args.dataset_slug]
+    if args.extra_dataset:
+        dataset_sources.append(args.username + "/" + args.extra_dataset)
+
     metadata = {
         "id": args.username + "/" + slug,
         "title": slug,
@@ -248,7 +296,7 @@ def main():
         # NvidiaTeslaP100 is not usable with the default Kaggle image because of
         # PyTorch compatibility - Kaggle's own docs warn about this.
         "machine_shape": "NvidiaTeslaT4",
-        "dataset_sources": [args.username + "/" + args.dataset_slug],
+        "dataset_sources": dataset_sources,
         "competition_sources": [],
         "kernel_sources": [],
     }
