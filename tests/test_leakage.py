@@ -102,7 +102,7 @@ def test_train_carries_all_variants(tag):
     augmentation silently stopped being used and nothing else would notice.
     """
     manifests = read_manifests(tag)
-    suffixes = set([value.rsplit("_", 1)[1] for value in manifests["train"]["segment_variant_id"]])
+    suffixes = {value.rsplit("_", 1)[1] for value in manifests["train"]["segment_variant_id"]}
     assert suffixes == {"orig", "noise", "scale", "combined"}, (
         f"{tag}: train manifest variants are {sorted(suffixes)}"
     )

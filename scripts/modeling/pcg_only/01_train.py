@@ -419,7 +419,7 @@ def main():
     parent_key = parent_name + "_parent"
 
     fold_results = []
-    with mlflow.start_run(run_name=parent_name) as parent_run:
+    with mlflow.start_run(run_name=parent_name):
         mlflow.set_tag("run_key", parent_key)
         mlflow.set_tag("model_family", MODEL_FAMILY)
         mlflow.set_tag("family_label", family_label)

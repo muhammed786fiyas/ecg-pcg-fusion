@@ -12,7 +12,6 @@ import inspect
 import os
 
 import pandas as pd
-import pytest
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCRIPT_PATH = os.path.join(REPO_ROOT, "scripts", "data", "05_assign_folds.py")
@@ -103,7 +102,7 @@ def test_assign_folds_ignores_record_id_ordering():
     labels = [1 if i % 3 else 0 for i in range(90)]
 
     forward = module.assign_folds(record_ids, labels, 42, 5, 0.6, 0.15, 0.25, 0.15)
-    pairs = list(zip(record_ids, labels))[::-1]
+    pairs = list(zip(record_ids, labels, strict=True))[::-1]
     reversed_ids = [pair[0] for pair in pairs]
     reversed_labels = [pair[1] for pair in pairs]
     backward = module.assign_folds(reversed_ids, reversed_labels, 42, 5, 0.6, 0.15, 0.25, 0.15)

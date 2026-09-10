@@ -92,7 +92,7 @@ def assign_inner_val(record_ids, labels, fold_of, fold_index, seed, inner_val_fr
     inner-validation.
     """
     pool_ids = [rid for rid in record_ids if fold_of[rid] != fold_index]
-    label_of = dict(zip(record_ids, labels))
+    label_of = dict(zip(record_ids, labels, strict=True))
     pool_labels = [label_of[rid] for rid in pool_ids]
 
     inner_ids = train_test_split(
@@ -118,7 +118,7 @@ def assign_folds(record_ids, labels, seed, k, dev_train_frac, dev_val_frac, dev_
     The old pipeline's augmentation failed in exactly this way, by depending on
     filesystem iteration order.
     """
-    pairs = sorted(zip([str(value) for value in record_ids], [int(value) for value in labels]))
+    pairs = sorted(zip([str(value) for value in record_ids], [int(value) for value in labels], strict=True))
     ids = [pair[0] for pair in pairs]
     targets = [pair[1] for pair in pairs]
 

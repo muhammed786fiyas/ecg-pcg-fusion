@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Lint and test (CPU, synthetic data)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          # CPU wheels only. No GPU in CI, and the CUDA build is ~2 GB.
+          python -m pip install --index-url https://download.pytorch.org/whl/cpu torch torchvision
+          python -m pip install \
+            "numpy<2" scipy pandas scikit-learn PyWavelets wfdb "neurokit2==0.2.7" \
+            matplotlib Pillow mlflow python-dotenv PyYAML pytest \
+            fastapi "uvicorn[standard]" python-multipart httpx tabulate ruff
+
+      - name: Lint
+        run: |
+          ruff check scripts/ tests/ docker/
+
+      - name: Run tests
+        # No data and no trained model in CI. The leakage and dataset tests skip
+        # themselves when pipeline outputs are absent; the model and API tests
+        # run on synthetic tensors and are the ones that actually gate a push.
+        run: |
+          python -m pytest tests/ -v --tb=short
+
+      - name: Confirm the model and API tests actually ran
+        # A skip is not a pass. If the suite that needs no data silently stopped
+        # collecting, this fails loudly rather than showing a green tick.
+        run: |
+          python -m pytest tests/test_model.py tests/test_api.py -q --no-header \
+            | tee result.txt
+          grep -qE "[0-9]+ passed" result.txt
+          if grep -qE "^(0 passed|no tests ran)" result.txt; then
+            echo "model/API tests did not run"; exit 1
+          fi

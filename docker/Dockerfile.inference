@@ -1,0 +1,28 @@
+# Inference image. Carries only the FastAPI service, a TorchScript export of
+# cross_attn_fusion, and CPU torch - no training code, no dataset, no DVC.
+FROM python:3.11-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    MODEL_CHECKPOINT=/app/model/cross_attn_fusion.pt \
+    PARAMS_PATH=/app/params.yaml
+
+WORKDIR /app
+
+RUN python -m pip install --upgrade pip \
+ && python -m pip install --index-url https://download.pytorch.org/whl/cpu torch \
+ && python -m pip install \
+      "fastapi" "uvicorn[standard]" "numpy<2" "PyWavelets" "Pillow" \
+      "matplotlib" "pydantic" "PyYAML" "python-multipart"
+
+COPY scripts/serving/app.py ./app.py
+COPY params.yaml ./params.yaml
+# Populated by docker/export_torchscript.py before the build.
+COPY models/serving/ ./model/
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)"
+
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]

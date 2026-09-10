@@ -40,3 +40,5 @@ kernel-metadata.json
 # ======================
 .DS_Store
 Thumbs.db
+.kaggle_staging/
+.kaggle_kernels/

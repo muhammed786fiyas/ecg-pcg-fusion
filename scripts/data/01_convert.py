@@ -101,7 +101,7 @@ def main():
 
     rows = []
     excluded = []
-    for record_id, label in zip(labels["record_id"], labels["label"]):
+    for record_id, label in zip(labels["record_id"], labels["label"], strict=True):
         result = read_record(args.raw_dir, record_id)
         if result is None:
             excluded.append({"record_id": record_id, "reason": "no_ecg_channel"})

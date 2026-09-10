@@ -1,0 +1,29 @@
+# Training image. CPU-only PyTorch base on purpose: this machine has no CUDA GPU
+# and the image must not assume one. Real training runs on Kaggle's GPU via
+# scripts/remote/, using the same scripts.
+FROM python:3.11-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    MLFLOW_ALLOW_FILE_STORE=true \
+    MLFLOW_TRACKING_URI=file:/workspace/models/mlflow_tracking
+
+WORKDIR /workspace
+
+# build-essential is needed to compile a few scientific wheels on slim.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends build-essential \
+ && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+
+# CPU wheels explicitly, so the image does not pull ~2 GB of CUDA libraries.
+RUN python -m pip install --upgrade pip \
+ && python -m pip install --index-url https://download.pytorch.org/whl/cpu torch torchvision \
+ && python -m pip install -r requirements.txt
+
+COPY params.yaml dvc.yaml ./
+COPY scripts/ ./scripts/
+COPY tests/ ./tests/
+
+CMD ["python", "-c", "print('ECG-PCG training image. Mount data/ and run a script from scripts/.')"]
