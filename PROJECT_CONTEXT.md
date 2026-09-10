@@ -15,179 +15,76 @@ cross-modal attention.**
 
 ---
 
-## Status as of 2026-09-10
+## Status as of 2026-09-10 (end of day 1)
 
-Numbering below follows `KICKOFF_PROMPT.md` §15.
+Numbering follows `KICKOFF_PROMPT.md` §15.
 
-**Done — steps 1–7, all committed locally (nothing pushed)**
+### Done — steps 1 through 13
 
 | § | Work | Outcome |
 |---|---|---|
-| 1 | Clear the slate | Only `data/raw/physionet2016_training_a/` survives |
-| 2 | Skeleton, `params.yaml`, `dvc init`, `.env`, `CLAUDE.md`, this file | Python 3.11.16 recorded; `numpy<2` pinned for `neurokit2==0.2.7` |
-| 3 | Data pipeline `01`–`06`, run on the full dataset | 409 → **405 records** → **3752 segments** → **15 008 augmented rows** |
-| 4 | Scalograms (default config) + manifests | Two uint8 memmaps, `(15008, 224, 224)`, 718 MB each |
-| 5 | Test suite, green *before* any training | **101 tests** passing; ruff clean |
-| 6 | Local CPU smoke test | Checkpoint + MLflow parent/child runs + metrics row all produced |
-| 7 | Kaggle offload + dry run + merge | Full round trip proven: push → poll → fetch → merge → results table |
+| 1 | Clear the slate | only raw Training-A survives |
+| 2 | Skeleton, params, DVC, CLAUDE.md | Python 3.11.16, `numpy<2` pinned |
+| 3 | Data pipeline `01`–`06` | 409 → **405 records** → **3752 segments** → **15 008 rows** |
+| 4 | Scalograms + manifests | uint8 memmaps, 7 wavelet configs |
+| 5 | Test suite | **101 tests**, green before training, ruff clean |
+| 6 | CPU smoke test | checkpoint + MLflow run + metrics |
+| 7 | Kaggle offload | push → poll → fetch → merge, proven |
+| 8 | 7 families × 5-fold CV | **35/35** |
+| 9 | Wavelet ablation | **35/35** (7 configs × 5 folds) |
+| 10 | Split-protocol negative controls | **2/2** |
+| 11 | Patient aggregation + Grad-CAM | done |
+| 12 | Results tables + figures | done |
+| 13 | MLOps | FastAPI, both Docker images built and smoke-tested, CI green |
 
-**Gate counts (measured, not estimated)** — full table in
-`docs/logs/tasks/1-data-pipeline.md`.
+**Compute: 70 kernels, 9.11 true GPU-hours of the 30/week budget.** No
+degradation rung from §9 was needed. The ledger records GPU time and wall clock
+separately; 29 early rows were reconciled from the kernel logs.
 
-| Gate | In | Out | Dropped |
-|---|---|---|---|
-| `01_convert` | 409 | 405 | 4 (the declared PCG-only records) |
-| `02_record_qc` | 405 | 405 | 0 |
-| `03_segment` | 405 records | 3752 segments | 0 records |
-| `04_segment_qc` | 3752 | 3752 | 0 (194 repaired by interpolation) |
-| `05_assign_folds` | 405 | dev 243/60/102; CV 5 × (275/49/81) | — |
-| `06_augment` | 3752 | 15 008 rows | — |
+### Main results — record-level 5-fold CV, mean ± std
 
-Label balance: **117 normal / 288 abnormal** records (71.1% abnormal);
-1087 / 2665 at segment level. Abnormal share per CV test fold: 0.716, 0.716,
-0.716, 0.704, 0.704.
-
-**Measured throughput.** ~500 s/epoch on this CPU vs **~27 s/epoch on a Kaggle
-T4** — an 18× speedup. Full 5-fold CV across all seven families would be ~120 h
-locally, so the GPU offload is load-bearing, not an optimisation. Kaggle allows
-only **2 concurrent batch GPU sessions**, which is why
-`scripts/remote/05_run_queue.py` exists.
-
-**TRAINING IS COMPLETE.** 70 kernels, 67 per-fold runs, **10.04 GPU-hours of
-the 30/week budget** — no degradation rung from §9 was needed.
-
-| block | status |
-|---|---|
-| 7 main families × 5 folds | 35/35 |
-| 7 wavelet configs × 5 folds | 35/35 |
-| negative controls (arms B, C) | 2/2 |
-
-**Contribution 1 result — the mother wavelet barely matters.** Segment AUC across
-all seven configs spans 0.819–0.853, a range of 0.034, against fold-to-fold
-noise of ±0.05–0.09. `w4_gaus4_morl` tops the table at 0.853 ± 0.054, which is
-worth an eyebrow: `gaus4` was only ever a substitute for `db4`, which `pywt.cwt`
-cannot use. Given the frequency-band confound documented below, that ranking
-cannot be attributed to wavelet shape alone.
-
-**Previously in progress**
-- **Main training queue running**: 30 jobs (6 families × 5 folds) on the padded
-  scalograms. `ecg_only` folds 0–3 complete.
-- **Wavelet ablation scalograms regenerating**: w2–w6 written, w7 to go. Every
-  config is checked with `scripts/features/verify_pad.py` before it feeds
-  training.
-- Default scalograms regenerated and verified; manifests rebuilt; Kaggle dataset
-  re-synced (v3, padded scalograms + negative-control manifests).
-
-**Verification of the fix — both checks passed**
-- Numeric, via `verify_pad.py`: ECG edge/interior energy ratio **19.29 → 0.80**,
-  interior mean **4.6 → 60.5** of 255.
-- Visual: the ECG scalogram now shows three low-frequency energy concentrations
-  (the cardiac cycles) with high-frequency QRS transients beneath, aligned in
-  time with the PCG's S1/S2 bursts. No edge bands. The visual check is not
-  optional here — the numeric QC gates passed while the images were wrong.
-
-**First complete family — `ecg_only`, 5-fold record-level CV, post-fix**
-
-| fold | segment AUC | patient AUC |
+| family | segment AUC | patient AUC |
 |---|---|---|
-| 0 | 0.8406 | 0.8703 |
-| 1 | 0.7769 | 0.8231 |
-| 2 | 0.7241 | 0.7279 |
-| 3 | 0.9446 | 0.9708 |
-| 4 | 0.8911 | 0.9276 |
-| **mean ± std** | **0.8355 ± 0.0878** | **0.8639 ± 0.0945** |
+| `ecg_only` | 0.8355 ± 0.0786 | 0.8639 ± 0.0845 |
+| `pcg_only` | 0.6237 ± 0.0753 | 0.6523 ± 0.0919 |
+| `dual_cnn` | 0.8353 ± 0.0723 | 0.8504 ± 0.0852 |
+| `warm_start_fusion` | 0.8402 ± 0.0486 | 0.8650 ± 0.0569 |
+| `cbam_fusion` | 0.8747 ± 0.0554 | 0.8945 ± 0.0685 |
+| `cross_attn_fusion` | 0.8218 ± 0.0657 | 0.8508 ± 0.0810 |
+| **`cross_attn_resnet18`** | **0.9216 ± 0.0302** | **0.9380 ± 0.0386** |
 
-The spread across folds is large (0.72–0.94 segment AUC). With only 81 test
-records per fold that is unsurprising, but it means single-fold numbers are not
-meaningful and the ± must always be reported.
+**Headline finding: no custom-CNN fusion variant is distinguishable from ECG
+alone.** Paired per-fold against `ecg_only` (patient AUC): `dual_cnn` −0.014
+(p=0.33), `cross_attn_fusion` −0.013 (p=0.35), `cbam_fusion` +0.031 (p=0.17),
+`warm_start_fusion` ≈ 0. Only `cross_attn_resnet18` rises above, +0.074
+(p=0.095) — and since it shares the identical cross-attention block, **the gain
+comes from the pretrained backbone, not the fusion**. `pcg_only` is clearly
+worse (−0.212, p=0.001). This replicates Kıymık (Physiol Meas 2026) and
+contradicts the old pipeline's fusion-wins ordering, which came from a
+patient-level-leaking split.
 
-**Headline interim finding — concatenation fusion does not beat ECG alone.**
-Paired per-fold comparison against `ecg_only` (same folds, same seed), patient
-AUC: `pcg_only` is -0.2117, losing all 5 folds (p = 0.001); `dual_cnn` is
--0.0136, losing 4 of 5 folds (p = 0.334). PCG alone is clearly weaker; naive
-fusion shows no advantage over ECG alone. The old pipeline reported the opposite
-ordering (fusion 0.817 > ECG 0.795) from a patient-level-leaking split, and that
-ordering does not reproduce under a clean record-level split. Whether *any*
-fusion scheme beats the ECG branch is what the remaining families exist to
-answer. Full analysis in `docs/logs/tasks/3-modeling.md`; script is
-`scripts/evaluation/05_paired_model_comparison.py`.
+### Next session — start here
 
-**Always run `scripts/remote/06_reconcile.py` before building results tables.**
-It merges any kernel output that failed to merge and prints which (family, fold)
-pairs are missing. `kaggle kernels output` can return non-zero while delivering
-every file — seen on `cross_attn_resnet18`, whose ~280 MB checkpoints are far
-larger than the other families' — which previously skipped the merge and left a
-completed fold absent from the store with nothing failing loudly.
+1. **HuggingFace Spaces deploy** (owner will supply a Write token from
+   huggingface.co → Settings → Access Tokens). Decide first whether to switch
+   the public demo from `cross_attn_fusion` to `cross_attn_resnet18` — the
+   latter is much stronger but needs `torchvision` and adapted Grad-CAM hooks,
+   since its branches are ResNet rather than `CNNBranch`.
+2. Consider Grad-CAM on `cross_attn_resnet18` for the paper, since the
+   interpretability figure currently uses a model that showed no fusion benefit.
+3. §15.14 wrap-up: the milestone tag `v1.0-rebuild` is already cut.
 
-**A contamination incident, caught and corrected.** A cleanup command chained
-with `&&` short-circuited on a busy file, so the rest of the chain never ran and
-pre-fix MLflow runs survived the rebuild, sitting alongside their post-fix
-replacements. Six stale runs were deleted; the table above is post-fix only.
-`03_build_results_tables.py` now hard-fails on duplicate (family, config, fold)
-runs, which is the visible symptom of exactly this. See the daily log.
+### Known open items
 
-**Next up, in order**
-1. ~~Re-sync the Kaggle dataset~~ — done, v3 carries the padded scalograms and
-   the negative-control manifests.
-2. **Running now:** the 30-job queue (§15.8: `ecg_only`, `pcg_only`, `dual_cnn`,
-   `cbam_fusion`, `cross_attn_fusion`, `cross_attn_resnet18`).
-3. **Running now:** regenerating the 6 non-default wavelet configs. Every config
-   is checked with `scripts/features/verify_pad.py` before it feeds training.
-4. `warm_start_fusion` — must run *after* the unimodal folds, since it needs
-   their checkpoints shipped as a second Kaggle dataset.
-5. Wavelet ablation: sync configs as a second dataset version, 30 runs (§15.9).
-6. Split-protocol negative controls, arms B and C (§15.10).
-7. Patient aggregation and Grad-CAM on the headline model (§15.11).
-8. Results tables and all figures (§15.12).
-9. Reconcile the GPU ledger from the fetched kernel logs (see below), then
-   finalise this file, tag the milestone, write the summary (§15.14).
-
-**Known limitation to state in the paper — Contribution 1 is confounded.**
-Holding the CWT scales fixed across wavelets (as the brief requires) does *not*
-hold the frequency band fixed, because each wavelet has its own centre
-frequency. At these scales `cmor1.5-1.0` covers 4-100 Hz on ECG while `mexh`
-covers 1-25 Hz - a 3.2x spread. So the wavelet comparison confounds wavelet
-*shape* with frequency *coverage*. The measured band is printed per row in
-`reports/figures/wavelet_table.md` and the caption says so outright. Describe it
-as a comparison of wavelets at fixed scales, and name a frequency-matched study
-as future work. Full table in `docs/logs/tasks/2-features.md`.
-
-**Compute budget — read the ledger carefully.** The queue that is running
-records *wall clock*, which over-counts GPU time by ~4.5× because it includes
-Kaggle's scheduling queue. True GPU time per `ecg_only` fold is ~8 min, not
-~36 min. `05_run_queue.py` has been fixed to charge GPU seconds read from the
-kernel log; the in-flight queue's rows still need reconciling before any total
-is quoted. Details in `docs/logs/tasks/5-mlops.md`.
-
-**Pending / not yet started**
-- Everything from §15.8 onward. MLOps (§15.13) is written and tested but the
-  Docker images have not been built, and the Gradio Spaces deploy is documented
-  rather than attempted (no token was provided).
-
-**Repository history was rewritten on 2026-09-10.** Two purges, both with the
-remote backed up first:
-1. A 430 MB Kaggle staging payload reached a commit because `.gitignore` had
-   `.kaggle_staging/` while the directory was `.kaggle_staging_ablation/`.
-   GitHub rejects any file over 100 MB, so the push failed outright.
-2. `DATASET/PHYSIONET` (13 319 objects) from the *original* pre-rebuild commits,
-   at the owner's request. **Repo went from 189 MB to 1.9 MB.**
-
-Two commits that contained nothing but `DATASET` files were pruned as empty
-(40 → 38 on `main`). The pre-rewrite remote history is preserved on the local
-branch **`pre-rebuild-backup`** and tag `pre-rebuild-remote`; note those no
-longer carry the DATASET blobs either, since keeping them would have defeated
-the purge. The raw data itself is untouched at
-`data/raw/physionet2016_training_a/` and in the owner's separate folder copy.
-
-**Pushing is now authorised** — the owner amended the brief's "never push" rule.
-See `CLAUDE.md`.
-
-**Known open items**
-- `tests/test_api.py` was written after the rest of the suite, once
-  `scripts/serving/app.py` existed. It is green.
-- The GPU quota ledger (`docs/logs/kaggle_quota_ledger.csv`) was reset along
-  with the discarded kernels; ~0.16 GPU-hours were spent on work that was
-  thrown away.
+- **`/explain` needs the eager checkpoint.** The Docker image ships both a
+  TorchScript graph and a state dict; `MODEL_CHECKPOINT` points at the latter so
+  all three endpoints work. §13 asked for "only a TorchScript export", which is
+  incompatible with serving Grad-CAM — documented in `docs/logs/tasks/5-mlops.md`.
+- **Contribution 1 is confounded** — fixed scales do not mean fixed frequency
+  bands. See below.
+- **Grad-CAM gives a mixed answer** — PCG matches physiology, ECG does not. See
+  `docs/logs/tasks/4-interpretability.md`.
+- The Gradio demo runs locally on port 7860 but is not deployed.
 
 ---
 
