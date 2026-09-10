@@ -38,6 +38,12 @@ LEDGER_NAME = "kaggle_quota_ledger.csv"
 
 # The split-protocol arms read deliberately leaky manifests. Everything else
 # reads the correct record-level ones.
+# Which auxiliary dataset a job needs mounted alongside the main one.
+# warm_start_fusion initialises from the unimodal checkpoints, and any
+# non-default scalogram config lives in the ablation dataset.
+CHECKPOINT_DATASET = "ecg-pcg-fusion-checkpoints"
+ABLATION_DATASET = "ecg-pcg-fusion-ablation"
+
 MANIFEST_SUBDIR_FOR_TAG = {
     "_leaky_val": "manifests_negative_control/arm_b_leaky_val",
     "_fully_leaky": "manifests_negative_control/arm_c_fully_leaky",
@@ -95,6 +101,15 @@ def job_slug(job):
     return "-".join(parts).lower()
 
 
+def extra_dataset_for(job):
+    """The second dataset this job needs, if any."""
+    if job["family"] == "warm_start_fusion":
+        return CHECKPOINT_DATASET
+    if job["config"] != "default":
+        return ABLATION_DATASET
+    return ""
+
+
 def make_kernel(job, username, dataset_slug, output_dir):
     command = [
         PYTHON, "scripts/remote/02_make_kernel.py",
@@ -111,6 +126,9 @@ def make_kernel(job, username, dataset_slug, output_dir):
         command = [*command, "--variant-tag", job["variant_tag"]]
     if job["variant_tag"] in MANIFEST_SUBDIR_FOR_TAG:
         command = [*command, "--manifest-subdir", MANIFEST_SUBDIR_FOR_TAG[job["variant_tag"]]]
+    extra = extra_dataset_for(job)
+    if extra:
+        command = [*command, "--extra-dataset", extra]
     if job["negative_control"]:
         command = [*command, "--negative-control"]
     result = subprocess.run(command, capture_output=True, text=True)

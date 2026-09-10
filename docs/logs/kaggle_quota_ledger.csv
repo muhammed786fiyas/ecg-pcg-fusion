@@ -28,3 +28,6 @@ date,kernel,family,config,fold,state,hours,weekly_total
 2026-09-10 18:54,ecgpcg-cross-attn-fusion-default-cv-fold4,cross_attn_fusion,default,4,complete,0.1186,4.1765
 2026-09-10 19:00,ecgpcg-cross-attn-resnet18-default-cv-fold0,cross_attn_resnet18,default,0,complete,0.1189,4.2954
 2026-09-10 19:03,ecgpcg-cross-attn-resnet18-default-cv-fold1,cross_attn_resnet18,default,1,complete,0.1197,4.4151
+2026-09-10 19:12,ecgpcg-cross-attn-resnet18-default-cv-fold3,cross_attn_resnet18,default,3,complete,0.0917,4.5068
+2026-09-10 19:14,ecgpcg-cross-attn-resnet18-default-cv-fold2,cross_attn_resnet18,default,2,complete,0.2008,4.7076
+2026-09-10 19:18,ecgpcg-cross-attn-resnet18-default-cv-fold4,cross_attn_resnet18,default,4,complete,0.0798,4.7874

@@ -80,10 +80,19 @@ def find_roots_containing(relative_path):
 
 
 def find_dataset_root():
-    """Backwards-compatible single-root resolution, for the zipped-payload case."""
-    roots = find_roots_containing("scalograms")
+    """The dataset holding the training scripts and params.yaml.
+
+    Resolved by looking for scripts/, NOT for scalograms/: once the wavelet
+    ablation configs ship as their own dataset, more than one mounted dataset
+    contains a scalograms/ directory, and picking by that marker can land on the
+    one with no training code in it. Each root is resolved by the marker that
+    actually identifies what it is needed for.
+    """
+    roots = find_roots_containing("scripts")
     if len(roots) == 0:
         roots = find_roots_containing("payload.zip")
+    if len(roots) == 0:
+        roots = find_roots_containing("scalograms")
     if len(roots) == 0:
         return ""
     return roots[0]

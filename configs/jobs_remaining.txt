@@ -1,0 +1,49 @@
+# family fold max_epochs [config] [variant_tag] [negative_control]
+
+# warm_start_fusion - needs the unimodal checkpoints dataset attached
+warm_start_fusion 0 50
+warm_start_fusion 1 50
+warm_start_fusion 2 50
+warm_start_fusion 3 50
+warm_start_fusion 4 50
+
+# NEGATIVE CONTROLS - deliberately leaky splits, never a result
+dual_cnn 0 50 default _leaky_val true
+dual_cnn 0 50 default _fully_leaky true
+
+# Contribution 1 wavelet ablation - w2 fold0 already done as the dry run
+dual_cnn 1 25 w2_morl_morl
+dual_cnn 2 25 w2_morl_morl
+dual_cnn 3 25 w2_morl_morl
+dual_cnn 4 25 w2_morl_morl
+
+dual_cnn 0 25 w3_mexh_morl
+dual_cnn 1 25 w3_mexh_morl
+dual_cnn 2 25 w3_mexh_morl
+dual_cnn 3 25 w3_mexh_morl
+dual_cnn 4 25 w3_mexh_morl
+
+dual_cnn 0 25 w4_gaus4_morl
+dual_cnn 1 25 w4_gaus4_morl
+dual_cnn 2 25 w4_gaus4_morl
+dual_cnn 3 25 w4_gaus4_morl
+dual_cnn 4 25 w4_gaus4_morl
+
+dual_cnn 0 25 w5_cmor_cmor
+dual_cnn 1 25 w5_cmor_cmor
+dual_cnn 2 25 w5_cmor_cmor
+dual_cnn 3 25 w5_cmor_cmor
+dual_cnn 4 25 w5_cmor_cmor
+
+dual_cnn 0 25 w6_cmor_mexh
+dual_cnn 1 25 w6_cmor_mexh
+dual_cnn 2 25 w6_cmor_mexh
+dual_cnn 3 25 w6_cmor_mexh
+dual_cnn 4 25 w6_cmor_mexh
+
+dual_cnn 0 25 w7_cmor_gaus4
+dual_cnn 1 25 w7_cmor_gaus4
+dual_cnn 2 25 w7_cmor_gaus4
+dual_cnn 3 25 w7_cmor_gaus4
+dual_cnn 4 25 w7_cmor_gaus4
+
