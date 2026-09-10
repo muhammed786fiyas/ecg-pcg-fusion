@@ -30,11 +30,53 @@ Actions CI, Gradio demo, and the Kaggle GPU-quota ledger.
 - **One kernel per (model config, fold).** Keeps every job far from Kaggle's
   9-hour session ceiling and makes a failure cost one fold rather than a sweep.
 
+## Measured CPU throughput — why training goes to Kaggle
+
+Timed on the real data, `dual_cnn`, CV fold 0 (10 104 train rows / 470 val /
+756 test), 16 CPU threads:
+
+> **1130 s wall clock for 2 epochs plus a test pass — roughly 500 s per epoch.**
+
+Extrapolating at ~25 epochs to early stopping: ~3.5 h per fold, ~17 h per model
+family, and **~120 h for 5-fold CV across all seven families** — before the
+wavelet ablation. Local CPU training is not a fallback that costs a bit more
+time; it does not finish. The GPU offload is load-bearing.
+
+## Kaggle gotchas — all found the hard way in the dry run
+
+1. **The dataset is mounted at `/kaggle/input/datasets/<owner>/<slug>`**, not
+   `/kaggle/input/<slug>`. The entry script now *discovers* the dataset root by
+   searching for the payload marker rather than hardcoding either layout.
+2. **A kernel pushed before the dataset version finishes processing sees no
+   dataset at all.** Wait until `kaggle datasets files <slug>` lists the
+   scalograms before pushing.
+3. **`mlflow` is not in the Kaggle image.** The entry script pip-installs
+   `mlflow` and `python-dotenv`, which is why `enable_internet: "true"` is
+   mandatory in `kernel-metadata.json`.
+4. **Kaggle auto-extracts an uploaded `.zip` into the dataset**, so the payload
+   arrives as a directory tree. The entry script still handles the still-zipped
+   case, since that behaviour is not contractual.
+5. **`kaggle datasets create` defaults to `--dir-mode skip`, which silently skips
+   subdirectories.** Everything therefore goes up as one `payload.zip`.
+6. **Resume-safety does not survive across kernel invocations.**
+   `/kaggle/working` is fresh on every run, so checkpoints do not persist between
+   them. This is the real argument for the brief's one-kernel-per-(config, fold)
+   sizing: a failure costs one fold, and there is no cross-run resume to lean on.
+
 ## Data notes & gotchas
 - `pip.exe` fails on this machine with "Access is denied" — always use
   `python -m pip`.
 - `conda activate` does not persist between tool calls; every Python command is
   prefixed `conda run -n ecg_pcg`.
+- **`conda run` crashes** (an unhandled conda plugin error) when its stdout is
+  piped to another command and the output is large. It killed a dataset upload
+  midway, leaving an empty dataset registered on Kaggle. For long or noisy
+  commands, call the env's interpreter directly:
+  `C:/Users/muham/.conda/envs/ecg_pcg/python.exe` and
+  `.../envs/ecg_pcg/Scripts/kaggle.exe`.
+- A JSON body cannot carry a literal `NaN`, so the API's non-finite guard is
+  exercised with a float64 (`1e39`) that overflows to `inf` on the cast to
+  float32 — the reachable path, rather than an unreachable one.
 
 ## Kaggle GPU quota ledger
 Weekly budget 30 h; stop launching new jobs at 25 h (`compute.kaggle_stop_at_hours`).
