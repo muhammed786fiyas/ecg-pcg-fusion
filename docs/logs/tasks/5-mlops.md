@@ -134,11 +134,28 @@ Two fixes:
 **Run `06_reconcile.py` before building any results table.** An incomplete family
 averaged as if complete is exactly the kind of error a table cannot show you.
 
-## Pending
-- DVC init and stage wiring.
-- `scripts/remote/` (sync, kernel templating, push/poll/fetch, merge).
-- Docker images, FastAPI, CI workflow, Gradio demo.
+## Done since
+- DVC initialised and every stage wired; `pipeline_dag.md` regenerated.
+- `scripts/remote/` complete: `01_sync_dataset`, `02_make_kernel`,
+  `03_run_kernel`, `04_merge_results`, plus two additions beyond the brief —
+  `05_run_queue` (Kaggle caps batch GPU sessions at 2, so ~60 jobs need a
+  scheduler, and the quota ledger has to come from somewhere) and
+  `06_reconcile` (the silent-missing-fold guard above).
+- FastAPI service, Gradio demo, CPU-only training and inference Dockerfiles,
+  TorchScript export with a trace-vs-eager equivalence check, GitHub Actions CI.
+  All written and tested; the Docker images have **not been built** and the
+  Spaces deploy is documented rather than attempted (no token provided).
 
-## Ideas
-- If the ablation upload (~6 GB) is slow, sync it as a second dataset *version*
-  rather than blocking the main runs behind it — already the plan in §9.
+## Datasets on Kaggle
+- `ecg-pcg-fusion-scalograms` — default config + manifests +
+  negative-control manifests + training scripts. 1.41 GB.
+- `ecg-pcg-fusion-ablation` — the six non-default wavelet configs. 8.42 GB,
+  uploaded in 18:54. Kept separate so adding it does not force a re-upload of
+  the default set, which is why the kernel resolves scalograms and manifests
+  from independently-searched mounted datasets.
+
+## Pending
+- `warm_start_fusion` needs the `ecg_only` and `pcg_only` checkpoints shipped as
+  a third dataset before it can run.
+- Wavelet ablation runs, negative-control runs, Grad-CAM, results tables.
+- Reconcile the wall-clock ledger rows written before the GPU-time fix.
