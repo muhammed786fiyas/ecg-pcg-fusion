@@ -1,0 +1,107 @@
+# Tunable knobs only. Never file paths - dvc.yaml owns every path, so changing a
+# knob here does not dirty an unrelated stage.
+# Nested <module>.<substage>.
+
+global_seed: 42
+
+smoke:
+  # Local CPU end-to-end proof run. Not a model config: it caps records, folds
+  # and epochs so the whole DAG finishes in minutes before anything is pushed
+  # to Kaggle.
+  enabled: false
+  n_records: 12
+  epochs: 2
+  cv_folds: 1
+
+data:
+  convert:
+    # The 4 PCG-only records in Training-A. Excluded because the whole project
+    # is synchronous dual-modality; kept explicit rather than inferred so the
+    # count is auditable.
+    pcg_only_records: [a0041, a0117, a0220, a0233]
+    expected_fs: 2000
+
+  record_qc:
+    max_nan_fraction: 0.5
+    min_std: 1.0e-8
+    min_duration_s: 3.0
+
+  segment:
+    window_s: 3.0
+    # R-peaks come from nk.ecg_peaks (Pan-Tompkins). Windows are centred on an
+    # R-peak and non-overlapping: a peak is only used if it sits at least
+    # window_s from the previous accepted window.
+    ecg_peak_method: pantompkins1985
+
+  segment_qc:
+    max_nan_fraction: 0.9
+
+  augment:
+    # 4x expansion. Every variant derives only from its own source segment -
+    # no cross-sample mixing. Named _combined, not _mix, because "mixing" reads
+    # as mixup to a reviewer and invites a leakage objection that does not apply.
+    variants: [orig, noise, scale, combined]
+    ecg_noise_std_frac: 0.01
+    pcg_noise_std: 0.02
+    ecg_scale_range: [0.9, 1.1]
+    pcg_scale_range: [0.85, 1.15]
+    pcg_shift_ms: 50
+
+features:
+  scalogram:
+    image_size: 224
+    ecg_wavelet: cmor1.5-1.0
+    ecg_scale_start: 20
+    ecg_scale_stop: 501
+    pcg_wavelet: morl
+    pcg_scale_start: 7
+    pcg_scale_stop: 131
+    # Scale ranges are held fixed across every wavelet in the ablation.
+    # Retuning scales per wavelet is a different and much larger experiment.
+
+  wavelet_ablation:
+    # Contribution 1. Config 1 is the default and is not regenerated - the
+    # default scalogram stage already produced it.
+    configs:
+      - {name: w2_morl_morl, ecg_wavelet: morl, pcg_wavelet: morl}
+      - {name: w3_mexh_morl, ecg_wavelet: mexh, pcg_wavelet: morl}
+      - {name: w4_gaus4_morl, ecg_wavelet: gaus4, pcg_wavelet: morl}
+      - {name: w5_cmor_cmor, ecg_wavelet: cmor1.5-1.0, pcg_wavelet: cmor1.5-1.0}
+      - {name: w6_cmor_mexh, ecg_wavelet: cmor1.5-1.0, pcg_wavelet: mexh}
+      - {name: w7_cmor_gaus4, ecg_wavelet: cmor1.5-1.0, pcg_wavelet: gaus4}
+
+split:
+  dev_train_frac: 0.60
+  dev_val_frac: 0.15
+  dev_test_frac: 0.25
+  # Fraction of each CV fold's training records held out as inner-validation
+  # for early stopping. Records, not segments.
+  cv_inner_val_frac: 0.15
+
+modeling:
+  common:
+    batch_size: 32
+    lr: 1.0e-4
+    max_epochs_main: 50
+    max_epochs_ablation: 25
+    early_stopping_patience: 5
+    dropout: 0.5
+
+  ecg_only: {lr: 1.0e-4}
+  pcg_only: {lr: 1.0e-4}
+  dual_cnn: {lr: 1.0e-4}
+  warm_start_fusion: {lr: 1.0e-4}
+  cbam_fusion: {lr: 1.0e-4, cbam_reduction: 16, cbam_spatial_kernel: 7}
+  cross_attn_fusion: {lr: 1.0e-4, n_heads: 4, head_dim: 64}
+  cross_attn_resnet18: {lr: 1.0e-4, n_heads: 4, head_dim: 64, proj_dim: 256}
+
+evaluation:
+  cv_folds: 5
+  aggregation_strategies: [majority_vote, mean_prob, max_prob]
+  decision_threshold: 0.5
+  gradcam_n_segments: 12
+
+compute:
+  budget_hours: 24
+  kaggle_weekly_gpu_hours: 30
+  kaggle_stop_at_hours: 25

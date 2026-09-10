@@ -1,0 +1,44 @@
+# ECG-PCG Cardiac Abnormality Detection - dependencies
+# Local env: conda env `ecg_pcg`, Python 3.11.16
+# Install with: conda run -n ecg_pcg python -m pip install -r requirements.txt
+# (python -m pip, not bare pip - the pip.exe launcher fails with "Access is denied")
+
+# --- numerics / signal processing ---
+numpy<2
+scipy
+pandas
+scikit-learn
+PyWavelets
+wfdb
+neurokit2==0.2.7
+
+# --- deep learning ---
+torch
+torchvision
+
+# --- plotting / imaging ---
+matplotlib
+Pillow
+
+# --- pipeline / tracking ---
+dvc
+mlflow
+python-dotenv
+PyYAML
+
+# --- serving ---
+fastapi
+uvicorn[standard]
+gradio
+python-multipart
+
+# --- testing ---
+pytest
+
+# --- remote compute (Kaggle GPU offload) ---
+kaggle>=1.8.0
+
+# Grad-CAM is hand-rolled (scripts/evaluation/02_gradcam.py) rather than taking
+# the `grad-cam` package: it is ~40 lines of forward/backward hooks, and keeping
+# it inline preserves the self-contained-script convention that lets the same
+# file run unmodified inside a Kaggle kernel. See docs/logs/tasks/4-interpretability.md
