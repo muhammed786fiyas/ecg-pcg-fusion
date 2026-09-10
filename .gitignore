@@ -40,5 +40,10 @@ kernel-metadata.json
 # ======================
 .DS_Store
 Thumbs.db
-.kaggle_staging/
+.kaggle_staging*/
 .kaggle_kernels/
+# Belt and braces: these payloads are hundreds of MB and are rebuilt on demand.
+# An earlier pattern was .kaggle_staging/ which did NOT match the
+# .kaggle_staging_ablation/ directory, and a 430 MB zip reached a commit.
+payload.zip
+*.zip

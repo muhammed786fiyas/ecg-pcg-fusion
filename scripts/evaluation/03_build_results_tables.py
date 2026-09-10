@@ -102,11 +102,21 @@ def format_mean_std(values):
     return f"{round(float(np.mean(clean)), 4)} ± {round(float(np.std(clean)), 4)}"
 
 
-def collect(runs, family_label, metric):
+def collect(runs, family_label, metric, config="default"):
+    """Metric values for one family, RESTRICTED TO ONE SCALOGRAM CONFIG.
+
+    The config filter is not optional. dual_cnn is trained on every wavelet
+    config for Contribution 1, so without it the main table's dual_cnn row
+    averaged 35 runs across 7 different input representations and presented the
+    result as a 5-fold cross-validation. The Folds column showing 35 is what
+    exposed it; the AUC itself looked entirely plausible.
+    """
     column = "metrics." + metric
-    if column not in runs.columns:
+    if column not in runs.columns or "params.family_label" not in runs.columns:
         return []
-    subset = runs[runs["params.family_label"] == family_label] if "params.family_label" in runs.columns else runs.iloc[0:0]
+    subset = runs[runs["params.family_label"] == family_label]
+    if "params.scalogram_config" in subset.columns:
+        subset = subset[subset["params.scalogram_config"] == config]
     return subset[column].tolist()
 
 
@@ -116,15 +126,15 @@ def family_labels(runs):
     return sorted(runs["params.family_label"].dropna().unique())
 
 
-def build_main_table(runs):
+def build_main_table(runs, config="default"):
     rows = []
     for family, display, fusion, backbone in MAIN_FAMILY_ORDER:
-        seg = collect(runs, family, "seg_auc")
-        patient = collect(runs, family, "patient_auc")
-        seg_f1 = collect(runs, family, "seg_f1")
-        patient_acc = collect(runs, family, "patient_accuracy")
-        patient_sens = collect(runs, family, "patient_sensitivity")
-        patient_spec = collect(runs, family, "patient_specificity")
+        seg = collect(runs, family, "seg_auc", config)
+        patient = collect(runs, family, "patient_auc", config)
+        seg_f1 = collect(runs, family, "seg_f1", config)
+        patient_acc = collect(runs, family, "patient_accuracy", config)
+        patient_sens = collect(runs, family, "patient_sensitivity", config)
+        patient_spec = collect(runs, family, "patient_specificity", config)
         rows.append(
             {
                 "Model": display,
@@ -196,7 +206,7 @@ def build_wavelet_table(runs, scale_params, fs):
     return pd.DataFrame(rows)
 
 
-def build_split_protocol_table(runs):
+def build_split_protocol_table(runs, config="default"):
     """Contribution 4. Every row here is a negative control except arm A."""
     arms = [
         ("dual_cnn", "A - correct (record-level)", "no", "Valid estimate"),
@@ -206,8 +216,8 @@ def build_split_protocol_table(runs):
     rows = []
     baseline_seg = None
     for label, display, leaked, status in arms:
-        seg = collect(runs, label, "seg_auc")
-        patient = collect(runs, label, "patient_auc")
+        seg = collect(runs, label, "seg_auc", config)
+        patient = collect(runs, label, "patient_auc", config)
         clean_seg = [v for v in seg if v is not None and not np.isnan(v)]
         mean_seg = float(np.mean(clean_seg)) if len(clean_seg) else None
         if label == "dual_cnn" and mean_seg is not None:
@@ -235,6 +245,20 @@ def build_split_protocol_table(runs):
     return pd.DataFrame(rows)
 
 
+def check_fold_counts(frame, expected_folds, title):
+    """A row with more folds than the protocol has is averaging across configs."""
+    if "Folds" not in frame.columns:
+        return
+    bad = frame[frame["Folds"] > expected_folds]
+    if len(bad) > 0:
+        raise SystemExit(
+            f"QC FAIL: {title} has rows with more than {expected_folds} folds:\n"
+            + bad[["Model", "Folds"]].to_string(index=False)
+            + "\n\nThat means runs from several scalogram configs are being averaged "
+            "into one row and presented as a k-fold result."
+        )
+
+
 def write_table(frame, base_path, title, caption):
     if len(frame) == 0:
         print(f"  {title}: no runs yet, skipping")
@@ -256,6 +280,9 @@ def main():
     parser.add_argument("--experiment", default="")
     parser.add_argument("--params", default="params.yaml")
     parser.add_argument("--fs", type=int, default=2000)
+    parser.add_argument("--expected-folds", type=int, default=5)
+    parser.add_argument("--config", default="default",
+                        help="scalogram config for the main and split-protocol tables")
     args = parser.parse_args()
 
     load_dotenv()
@@ -274,8 +301,10 @@ def main():
 
     os.makedirs(args.output_dir, exist_ok=True)
 
+    main_table = build_main_table(folds, args.config)
+    check_fold_counts(main_table, args.expected_folds, "the main ablation table")
     write_table(
-        build_main_table(folds),
+        main_table,
         os.path.join(args.output_dir, "ablation_table"),
         "Main ablation - ECG-PCG fusion on PhysioNet/CinC 2016 Training-A",
         "Record-level stratified 5-fold cross-validation. Values are mean ± std "
@@ -304,7 +333,7 @@ def main():
     )
 
     write_table(
-        build_split_protocol_table(folds),
+        build_split_protocol_table(folds, args.config),
         os.path.join(args.output_dir, "split_protocol_table"),
         "Contribution 4 - split-protocol sensitivity (NEGATIVE CONTROL)",
         NEGATIVE_CONTROL_CAPTION,

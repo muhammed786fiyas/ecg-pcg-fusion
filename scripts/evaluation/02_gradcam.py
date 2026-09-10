@@ -25,6 +25,7 @@ import os
 import matplotlib
 import numpy as np
 import pandas as pd
+import pywt
 import torch
 import yaml
 
@@ -35,6 +36,15 @@ UINT8_MAX = 255.0
 IMAGE_SIZE = 224
 OVERLAY_ALPHA = 0.45
 CAM_EPSILON = 1e-8
+
+# Named by what the band means for the heart, not by equal division of the axis.
+# QRS energy is classically 5-40 Hz; S1/S2 heart sounds sit around 20-150 Hz.
+FREQUENCY_BANDS = [
+    ("0_10hz", 0.0, 10.0),
+    ("10_25hz", 10.0, 25.0),
+    ("25_50hz", 25.0, 50.0),
+    ("50_plus_hz", 50.0, 1e9),
+]
 
 
 def load_params(params_path):
@@ -160,23 +170,47 @@ def render_panel(ecg_image, pcg_image, ecg_cam, pcg_cam, title, out_path):
     plt.close(figure)
 
 
-def cam_mass_profile(cam):
-    """Where the map puts its mass, as fractions along each axis.
+def cam_mass_profile(cam, scales, wavelet, fs):
+    """Where the map puts its mass, reported in actual Hz.
 
-    Reported so the physiological question can be answered with numbers rather
-    than by eyeballing: the frequency profile says which scale bands the model
-    attends to, the time profile whether it locks onto discrete events.
+    An earlier version binned rows into "low/mid/high thirds" by ROW INDEX and
+    named them accordingly. That inverted the physiology: row 0 is the SMALLEST
+    scale, which is the HIGHEST frequency, so the field called "low" held the
+    high-frequency mass. Reporting it would have claimed the opposite of what the
+    model attends to.
+
+    Rows are mapped back to their scale, and the scale to Hz, so the bands are
+    named by the quantity a cardiologist would ask about.
     """
-    frequency = cam.mean(axis=1)
-    time = cam.mean(axis=0)
-    thirds = len(frequency) // 3
-    return {
-        "freq_low_third": float(frequency[:thirds].mean()),
-        "freq_mid_third": float(frequency[thirds : 2 * thirds].mean()),
-        "freq_high_third": float(frequency[2 * thirds :].mean()),
-        "time_peak_position": float(np.argmax(time)) / float(len(time)),
-        "time_concentration": float(time.max() / (time.mean() + CAM_EPSILON)),
+    n_rows = cam.shape[0]
+    # The scalogram was resized from len(scales) rows to n_rows, so row r came
+    # from this position in the original scale axis.
+    positions = np.linspace(0, len(scales) - 1, n_rows)
+    row_scales = np.interp(positions, np.arange(len(scales)), np.asarray(scales, dtype=float))
+    row_frequencies = pywt.scale2frequency(wavelet, row_scales) * fs
+
+    row_mass = cam.mean(axis=1)
+    total = float(row_mass.sum()) + CAM_EPSILON
+
+    def band_share(low_hz, high_hz):
+        inside = (row_frequencies >= low_hz) & (row_frequencies < high_hz)
+        return float(row_mass[inside].sum() / total)
+
+    time_mass = cam.mean(axis=0)
+    profile = {
+        "peak_frequency_hz": float(row_frequencies[int(np.argmax(row_mass))]),
+        "median_frequency_hz": float(
+            row_frequencies[int(np.argmin(np.abs(np.cumsum(row_mass) - total / 2.0)))]
+        ),
+        "time_peak_position": float(np.argmax(time_mass)) / float(len(time_mass)),
+        "time_concentration": float(time_mass.max() / (time_mass.mean() + CAM_EPSILON)),
+        "band_min_hz": float(row_frequencies.min()),
+        "band_max_hz": float(row_frequencies.max()),
     }
+    # Bands chosen for what they mean clinically, not for equal width.
+    for name, low_hz, high_hz in FREQUENCY_BANDS:
+        profile["mass_" + name] = band_share(low_hz, high_hz)
+    return profile
 
 
 def main():
@@ -194,6 +228,15 @@ def main():
     params = load_params(args.params)
     threshold = params["evaluation"]["decision_threshold"]
     n_segments = params["evaluation"]["gradcam_n_segments"]
+
+    # Needed to map CAM rows back to real frequencies, so the physiological
+    # claim is stated in Hz rather than in image-row position.
+    feature_params = params["features"]["scalogram"]
+    ecg_wavelet = feature_params["ecg_wavelet"]
+    pcg_wavelet = feature_params["pcg_wavelet"]
+    ecg_scales = np.arange(feature_params["ecg_scale_start"], feature_params["ecg_scale_stop"])
+    pcg_scales = np.arange(feature_params["pcg_scale_start"], feature_params["pcg_scale_stop"])
+    fs = params["data"]["convert"]["expected_fs"]
 
     print("=== 02_gradcam ===")
     print(f"family={args.family} config={args.scalogram_config} fold={args.fold_tag} n_segments={n_segments}")
@@ -268,9 +311,9 @@ def main():
             "category": entry["category"],
             "figure": os.path.basename(out_path),
         }
-        for name, value in cam_mass_profile(ecg_cam).items():
+        for name, value in cam_mass_profile(ecg_cam, ecg_scales, ecg_wavelet, fs).items():
             record["ecg_" + name] = value
-        for name, value in cam_mass_profile(pcg_cam).items():
+        for name, value in cam_mass_profile(pcg_cam, pcg_scales, pcg_wavelet, fs).items():
             record["pcg_" + name] = value
         records.append(record)
         print(f"  wrote {os.path.basename(out_path)} p={round(probability, 3)}")
@@ -283,15 +326,19 @@ def main():
     frame.to_csv(summary_path, index=False)
 
     print("")
-    print("Grad-CAM mass by frequency third (mean over the selected segments):")
+    print("Grad-CAM mass by FREQUENCY BAND (fraction of total, mean over selected segments):")
     for modality in ["ecg", "pcg"]:
-        low = round(float(frame[modality + "_freq_low_third"].mean()), 4)
-        mid = round(float(frame[modality + "_freq_mid_third"].mean()), 4)
-        high = round(float(frame[modality + "_freq_high_third"].mean()), 4)
-        concentration = round(float(frame[modality + "_time_concentration"].mean()), 3)
-        print(f"  {modality}: low={low} mid={mid} high={high} time_concentration={concentration}")
+        shares = [
+            f"{name.replace('_', '-')}={round(float(frame[modality + '_mass_' + name].mean()), 3)}"
+            for name, _, _ in FREQUENCY_BANDS
+        ]
+        peak = round(float(frame[modality + "_peak_frequency_hz"].mean()), 1)
+        median = round(float(frame[modality + "_median_frequency_hz"].mean()), 1)
+        concentration = round(float(frame[modality + "_time_concentration"].mean()), 2)
+        print(f"  {modality}: " + " ".join(shares))
+        print(f"       peak {peak} Hz, median {median} Hz, time concentration {concentration}x")
     print("")
-    print("Note: in these images row 0 is the SMALLEST scale, i.e. the HIGHEST frequency.")
+    print("QRS energy is classically 5-40 Hz; S1/S2 heart sounds ~20-150 Hz.")
     print("Interpret and write up honestly in docs/logs/tasks/4-interpretability.md")
 
     with open(os.path.join(args.output_dir, "gradcam_summary.json"), "w") as handle:
