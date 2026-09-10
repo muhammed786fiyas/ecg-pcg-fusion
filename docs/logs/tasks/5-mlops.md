@@ -154,6 +154,44 @@ averaged as if complete is exactly the kind of error a table cannot show you.
   the default set, which is why the kernel resolves scalograms and manifests
   from independently-searched mounted datasets.
 
+### Docker images built and smoke-tested — and the build found a real bug
+
+The inference image was written long before it was built. Building it exposed a
+defect that no local test could:
+
+`load_model()` did `checkpoint["model"]` unconditionally. That is right for a
+training checkpoint (`*_best.pth`, a dict with a "model" key) but wrong for the
+**TorchScript export the image actually ships**, which deserialises to a
+`RecursiveScriptModule`. Subscripting it raises `NotImplementedError`, and the
+container died at startup with exit code 3. The API tests passed throughout,
+because they point at the `.pth`.
+
+`load_model()` now detects which form it was handed and behaves accordingly.
+
+**A genuine tension in the brief, resolved explicitly.** §13 says the inference
+image should carry "only a TorchScript export", and also that the service must
+provide `/explain`. Both cannot hold: Grad-CAM registers backward hooks on
+`CNNBranch.features`, and a scripted module's internals do not accept them. So
+the image ships **both** artifacts (~5 MB each):
+
+| artifact | purpose |
+|---|---|
+| `cross_attn_fusion.pt` | TorchScript graph, for graph-only serving |
+| `cross_attn_fusion_eager.pth` | state dict — the default, so `/explain` works |
+
+`MODEL_CHECKPOINT` points at the eager form. `/health` reports
+`supports_explain`, and `/explain` returns **501 with an explanatory message**
+rather than a stack trace if a scripted module is loaded.
+
+**Smoke test against the running container, on real held-out test data:**
+- `/health` → `ok`, `model_loaded: true`, `supports_explain: true`,
+  `preprocessing: matches params.yaml`
+- `/predict` → **6/6 correct** on `cv_fold0` test segments
+- `/explain` → HTTP 200, `image/png`, 240 760 bytes, valid PNG
+
+Images: `ecg-pcg-serve:latest` (1.71 GB), `ecg-pcg-train:latest`.
+No Docker Hub sign-in is needed — `python:3.11-slim` pulls anonymously.
+
 ## Pending
 - `warm_start_fusion` needs the `ecg_only` and `pcg_only` checkpoints shipped as
   a third dataset before it can run.

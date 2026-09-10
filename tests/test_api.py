@@ -45,7 +45,7 @@ def test_health_contract(client):
     response = client.get("/health")
     assert response.status_code == 200
     body = response.json()
-    for field in ["status", "model_loaded", "model_version", "checkpoint", "device", "preprocessing"]:
+    for field in ["status", "model_loaded", "supports_explain", "model_version", "checkpoint", "device", "preprocessing"]:
         assert field in body, f"/health is missing '{field}'"
     assert isinstance(body["model_loaded"], bool)
     assert body["status"] in ("ok", "degraded")

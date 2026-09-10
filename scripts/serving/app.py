@@ -186,28 +186,58 @@ class PredictResponse(BaseModel):
 class HealthResponse(BaseModel):
     status: str
     model_loaded: bool
+    supports_explain: bool
     model_version: str
     checkpoint: str
     device: str
     preprocessing: str
 
 
-STATE = {"model": None, "device": torch.device("cpu"), "loaded": False}
+STATE = {"model": None, "device": torch.device("cpu"), "loaded": False, "supports_explain": False}
 
 
 def load_model():
-    model = CrossAttnFusion(DROPOUT, N_HEADS)
-    if os.path.exists(CHECKPOINT_PATH):
-        checkpoint = torch.load(CHECKPOINT_PATH, map_location="cpu", weights_only=False)
-        model.load_state_dict(checkpoint["model"])
-        STATE["loaded"] = True
-        print(f"loaded checkpoint {CHECKPOINT_PATH}")
-    else:
+    """Load either a training checkpoint or a TorchScript export.
+
+    Both are legitimate inputs and they need different handling:
+
+    - a **training checkpoint** (`*_best.pth`) is a dict with a "model" key
+      holding a state dict. It is loaded into an eager CrossAttnFusion, which
+      supports Grad-CAM because hooks can be registered on its submodules.
+    - a **TorchScript export** (`*.pt`) deserialises to a RecursiveScriptModule.
+      It runs /predict fine but cannot serve /explain: registering backward
+      hooks on a scripted module's internals is not supported.
+
+    The first version assumed the checkpoint form and did `checkpoint["model"]`
+    unconditionally. Against the TorchScript artifact the Docker image actually
+    ships, that raises NotImplementedError and the container dies at startup.
+    The local tests never caught it because they point at the .pth.
+    """
+    STATE["supports_explain"] = False
+    if not os.path.exists(CHECKPOINT_PATH):
         # Serve with random weights rather than refusing to start, so /health can
         # report the real problem instead of the container crash-looping.
         STATE["loaded"] = False
-        print(f"WARNING: checkpoint not found at {CHECKPOINT_PATH}, serving an untrained model")
+        model = CrossAttnFusion(DROPOUT, N_HEADS)
+        model.eval()
+        STATE["model"] = model
+        STATE["supports_explain"] = True
+        print(f"WARNING: no model at {CHECKPOINT_PATH}, serving an untrained model")
+        return model
+
+    loaded = torch.load(CHECKPOINT_PATH, map_location="cpu", weights_only=False)
+
+    if isinstance(loaded, dict) and "model" in loaded:
+        model = CrossAttnFusion(DROPOUT, N_HEADS)
+        model.load_state_dict(loaded["model"])
+        STATE["supports_explain"] = True
+        print(f"loaded training checkpoint {CHECKPOINT_PATH} (Grad-CAM available)")
+    else:
+        model = loaded
+        print(f"loaded TorchScript module {CHECKPOINT_PATH} (Grad-CAM unavailable)")
+
     model.eval()
+    STATE["loaded"] = True
     STATE["model"] = model
     return model
 
@@ -258,6 +288,7 @@ def health():
     return HealthResponse(
         status="ok" if STATE["loaded"] else "degraded",
         model_loaded=STATE["loaded"],
+        supports_explain=bool(STATE["supports_explain"]),
         model_version=MODEL_VERSION,
         checkpoint=CHECKPOINT_PATH,
         device=str(STATE["device"]),
@@ -324,6 +355,16 @@ def explain(request: SignalRequest):
 
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
+
+    if not STATE["supports_explain"]:
+        raise HTTPException(
+            status_code=501,
+            detail=(
+                "Grad-CAM needs an eager model, but this service loaded a TorchScript "
+                "export, whose internals cannot take backward hooks. Point "
+                "MODEL_CHECKPOINT at a training checkpoint (*_best.pth) to enable /explain."
+            ),
+        )
 
     ecg, pcg = validate(request)
     ecg_image, pcg_image, ecg_tensor, pcg_tensor = to_tensors(ecg, pcg, request.fs)

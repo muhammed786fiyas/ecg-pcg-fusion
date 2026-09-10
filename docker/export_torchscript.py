@@ -65,6 +65,19 @@ def main():
     size_mb = round(os.path.getsize(args.output) / (1024.0 * 1024.0), 2)
     print(f"wrote {args.output} ({size_mb} MB)")
 
+    # Also stage the eager checkpoint alongside it.
+    #
+    # The brief asks for an inference image carrying "only a TorchScript export",
+    # but it also asks that image to serve /explain - and Grad-CAM cannot register
+    # backward hooks on a scripted module's internals. Those two requirements
+    # cannot both hold. Shipping the state dict as well costs ~5 MB and keeps all
+    # three endpoints working; the TorchScript is still there for graph-only
+    # serving where /explain is not needed.
+    eager_path = os.path.join(os.path.dirname(args.output), "cross_attn_fusion_eager.pth")
+    torch.save({"model": model.state_dict()}, eager_path)
+    eager_mb = round(os.path.getsize(eager_path) / (1024.0 * 1024.0), 2)
+    print(f"wrote {eager_path} ({eager_mb} MB) so /explain works in the container")
+
 
 if __name__ == "__main__":
     main()

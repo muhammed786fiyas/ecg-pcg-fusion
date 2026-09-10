@@ -1,10 +1,17 @@
-# Inference image. Carries only the FastAPI service, a TorchScript export of
-# cross_attn_fusion, and CPU torch - no training code, no dataset, no DVC.
+# Inference image. Carries the FastAPI service, the cross_attn_fusion model and
+# CPU torch - no training code, no dataset, no DVC.
+#
+# Two model artifacts ship, deliberately:
+#   cross_attn_fusion.pt        TorchScript graph, for graph-only serving
+#   cross_attn_fusion_eager.pth state dict, the default
+# Grad-CAM cannot register backward hooks on a scripted module, so /explain needs
+# the eager form. MODEL_CHECKPOINT points at it so all three endpoints work; set
+# it to the .pt if you want the scripted graph and can live without /explain.
 FROM python:3.11-slim
 
 ENV PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
-    MODEL_CHECKPOINT=/app/model/cross_attn_fusion.pt \
+    MODEL_CHECKPOINT=/app/model/cross_attn_fusion_eager.pth \
     PARAMS_PATH=/app/params.yaml
 
 WORKDIR /app
