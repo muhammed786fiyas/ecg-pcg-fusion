@@ -98,3 +98,38 @@ stages:
     outs:
       - data/interim/augmented
       - data/interim/augmented_index.csv
+
+  scalogram_default:
+    cmd: python scripts/features/01_scalogram.py
+      --augmented-dir data/interim/augmented
+      --index-in data/interim/augmented_index.csv
+      --output-dir data/processed/scalograms/default
+      --config-name default
+    deps:
+      - scripts/features/01_scalogram.py
+      - data/interim/augmented
+      - data/interim/augmented_index.csv
+    params:
+      - features.scalogram
+    outs:
+      - data/processed/scalograms/default
+
+  build_manifests:
+    cmd: python scripts/modeling/dataset_prep/01_build_manifests.py
+      --fold-assignments data/processed/manifests/fold_assignments.csv
+      --row-index data/processed/scalograms/default/row_index.csv
+      --output-dir data/processed/manifests
+    deps:
+      - scripts/modeling/dataset_prep/01_build_manifests.py
+      - data/processed/manifests/fold_assignments.csv
+      - data/processed/scalograms/default
+    params:
+      - evaluation.cv_folds
+      - smoke
+    outs:
+      - data/processed/manifests/dev
+      - data/processed/manifests/cv_fold0
+      - data/processed/manifests/cv_fold1
+      - data/processed/manifests/cv_fold2
+      - data/processed/manifests/cv_fold3
+      - data/processed/manifests/cv_fold4

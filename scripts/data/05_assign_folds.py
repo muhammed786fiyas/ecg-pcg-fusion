@@ -109,9 +109,18 @@ def assign_folds(record_ids, labels, seed, k, dev_train_frac, dev_val_frac, dev_
     """The whole split, from record IDs and labels alone.
 
     This signature is the contract: nothing segment-derived can reach it.
+
+    Records are sorted by ID before anything is split. sklearn's splitters
+    shuffle POSITIONS, so without this the assignment would depend on the order
+    rows happened to arrive in - re-sorting the input index would silently
+    reshuffle every fold at a fixed seed. Sorting makes the split a function of
+    the record SET and the seed only, which is the property we actually want.
+    The old pipeline's augmentation failed in exactly this way, by depending on
+    filesystem iteration order.
     """
-    ids = list(record_ids)
-    targets = [int(value) for value in labels]
+    pairs = sorted(zip([str(value) for value in record_ids], [int(value) for value in labels]))
+    ids = [pair[0] for pair in pairs]
+    targets = [pair[1] for pair in pairs]
 
     partition = assign_dev_partition(ids, targets, seed, dev_train_frac, dev_val_frac, dev_test_frac)
     fold_of = assign_cv_folds(ids, targets, seed, k)

@@ -165,8 +165,8 @@ stages:
       size: 8130
     - path: scripts/data/05_assign_folds.py
       hash: md5
-      md5: 25ccfe240bc7885739365ef65d965e54
-      size: 8023
+      md5: 0ea5384d52bff1f822d7a4f9abb3e93f
+      size: 8626
     params:
       params.yaml:
         evaluation.cv_folds: 5
@@ -233,3 +233,95 @@ stages:
       hash: md5
       md5: 079e4185558ebdd7b7b7f4026f5ee1e7
       size: 720439
+  scalogram_default:
+    cmd: python scripts/features/01_scalogram.py --augmented-dir 
+      data/interim/augmented --index-in data/interim/augmented_index.csv 
+      --output-dir data/processed/scalograms/default --config-name default
+    deps:
+    - path: data/interim/augmented
+      hash: md5
+      md5: 32bd2c4eaa65f57d6a38e39c6a05df85.dir
+      size: 510567846
+      nfiles: 15008
+    - path: data/interim/augmented_index.csv
+      hash: md5
+      md5: 079e4185558ebdd7b7b7f4026f5ee1e7
+      size: 720439
+    - path: scripts/features/01_scalogram.py
+      hash: md5
+      md5: e9a781f1b464e95d8f069690e27c588e
+      size: 10368
+    params:
+      params.yaml:
+        features.scalogram:
+          image_size: 224
+          ecg_wavelet: cmor1.5-1.0
+          ecg_scale_start: 20
+          ecg_scale_stop: 501
+          pcg_wavelet: morl
+          pcg_scale_start: 7
+          pcg_scale_stop: 131
+    outs:
+    - path: data/processed/scalograms/default
+      hash: md5
+      md5: 1e1a3cd5b6f8308beb27f967ceb9e7e9.dir
+      size: 1506882459
+      nfiles: 3
+  build_manifests:
+    cmd: python scripts/modeling/dataset_prep/01_build_manifests.py 
+      --fold-assignments data/processed/manifests/fold_assignments.csv 
+      --row-index data/processed/scalograms/default/row_index.csv --output-dir 
+      data/processed/manifests
+    deps:
+    - path: data/processed/manifests/fold_assignments.csv
+      hash: md5
+      md5: 62fc789e92f237d5e3981892510b119e
+      size: 18707
+    - path: data/processed/scalograms/default
+      hash: md5
+      md5: 1e1a3cd5b6f8308beb27f967ceb9e7e9.dir
+      size: 1506882459
+      nfiles: 3
+    - path: scripts/modeling/dataset_prep/01_build_manifests.py
+      hash: md5
+      md5: 410acf6d8887949b2ed75d7386fbe228
+      size: 6586
+    params:
+      params.yaml:
+        evaluation.cv_folds: 5
+        smoke:
+          enabled: false
+          n_records: 12
+          epochs: 2
+          cv_folds: 1
+    outs:
+    - path: data/processed/manifests/cv_fold0
+      hash: md5
+      md5: 9434f16a248bef966d9511d734c1414f.dir
+      size: 380778
+      nfiles: 3
+    - path: data/processed/manifests/cv_fold1
+      hash: md5
+      md5: dedd0b3452ccfcda7ae15dc02dbac057.dir
+      size: 381854
+      nfiles: 3
+    - path: data/processed/manifests/cv_fold2
+      hash: md5
+      md5: a5c6067eed86c032ffb6119877adfa88.dir
+      size: 383430
+      nfiles: 3
+    - path: data/processed/manifests/cv_fold3
+      hash: md5
+      md5: f00bf74023029043383e86292c6cc16f.dir
+      size: 382637
+      nfiles: 3
+    - path: data/processed/manifests/cv_fold4
+      hash: md5
+      md5: a0ff40829ff905d55c253b2ab133d617.dir
+      size: 384758
+      nfiles: 3
+    - path: data/processed/manifests/dev
+      hash: md5
+      md5: 82afab176f6868b861b0f8f9f655d8b2.dir
+      size: 352517
+      nfiles: 3
