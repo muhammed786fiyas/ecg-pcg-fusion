@@ -1,0 +1,6 @@
+# Contribution 4: NEGATIVE CONTROLS. Arm A is the ordinary dual_cnn run.
+# These two use deliberately leaky manifests and must never be read as
+# a result of the method.
+
+dual_cnn 0 50 default _leaky_val true
+dual_cnn 0 50 default _fully_leaky true

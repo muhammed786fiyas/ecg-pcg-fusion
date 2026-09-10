@@ -35,6 +35,13 @@ TERMINAL_STATES = ["complete", "error", "cancel"]
 AUTH_MARKERS = ["401", "unauthorized", "authentication", "invalid token", "expired", "403", "forbidden"]
 LEDGER_NAME = "kaggle_quota_ledger.csv"
 
+# The split-protocol arms read deliberately leaky manifests. Everything else
+# reads the correct record-level ones.
+MANIFEST_SUBDIR_FOR_TAG = {
+    "_leaky_val": "manifests_negative_control/arm_b_leaky_val",
+    "_fully_leaky": "manifests_negative_control/arm_c_fully_leaky",
+}
+
 # Call the interpreter running this file, and the kaggle CLI installed beside it,
 # rather than whatever "python"/"kaggle" happen to resolve to on PATH. The project
 # lives in a conda env that is not on PATH by default.
@@ -101,6 +108,8 @@ def make_kernel(job, username, dataset_slug, output_dir):
     ]
     if job["variant_tag"]:
         command = [*command, "--variant-tag", job["variant_tag"]]
+    if job["variant_tag"] in MANIFEST_SUBDIR_FOR_TAG:
+        command = [*command, "--manifest-subdir", MANIFEST_SUBDIR_FOR_TAG[job["variant_tag"]]]
     if job["negative_control"]:
         command = [*command, "--negative-control"]
     result = subprocess.run(command, capture_output=True, text=True)

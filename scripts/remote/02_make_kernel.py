@@ -37,6 +37,7 @@ FOLD = {fold}
 MAX_EPOCHS = {max_epochs}
 VARIANT_TAG = "{variant_tag}"
 NEGATIVE_CONTROL = {negative_control}
+MANIFEST_SUBDIR = "{manifest_subdir}"
 
 
 def describe_inputs():
@@ -198,13 +199,17 @@ def main():
     if not os.path.exists(script):
         raise SystemExit("QC FAIL: training script not found at " + script)
 
+    manifest_root = os.path.join(data_root, MANIFEST_SUBDIR)
+    if not os.path.isdir(manifest_root):
+        raise SystemExit("QC FAIL: manifest directory not found: " + manifest_root)
+
     argv = [
         script,
         "--protocol", PROTOCOL,
         "--fold", str(FOLD),
         "--scalogram-config", SCALOGRAM_CONFIG,
         "--scalogram-root", os.path.join(data_root, "scalograms"),
-        "--manifest-root", os.path.join(data_root, "manifests"),
+        "--manifest-root", os.path.join(data_root, MANIFEST_SUBDIR),
         "--model-root", models_dir,
         "--report-root", reports_dir,
         "--params", os.path.join(data_root, "params.yaml"),
@@ -248,6 +253,9 @@ def main():
     parser.add_argument("--negative-control", action="store_true")
     parser.add_argument("--username", default=os.environ.get("KAGGLE_USERNAME", ""))
     parser.add_argument("--dataset-slug", default=os.environ.get("KAGGLE_DATASET_SLUG", "ecg-pcg-fusion-scalograms"))
+    parser.add_argument("--manifest-subdir", default="manifests",
+                        help="manifest directory inside the dataset; the negative-control "
+                             "arms use manifests_negative_control/arm_<x>")
     parser.add_argument("--extra-dataset", default="",
                         help="second dataset slug to attach, e.g. the unimodal checkpoints")
     parser.add_argument("--output-dir", default=".kaggle_kernels")
@@ -275,6 +283,7 @@ def main():
         max_epochs=args.max_epochs,
         variant_tag=args.variant_tag,
         negative_control=str(bool(args.negative_control)),
+        manifest_subdir=args.manifest_subdir,
     )
     entry_path = os.path.join(job_dir, "run.py")
     with open(entry_path, "w", newline="\n") as handle:

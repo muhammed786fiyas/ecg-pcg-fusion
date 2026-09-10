@@ -1,0 +1,39 @@
+# Contribution 1: wavelet ablation. dual_cnn throughout, 25 epochs.
+# The default config is deliberately absent - it IS the dual_cnn row.
+
+dual_cnn 0 25 w2_morl_morl
+dual_cnn 1 25 w2_morl_morl
+dual_cnn 2 25 w2_morl_morl
+dual_cnn 3 25 w2_morl_morl
+dual_cnn 4 25 w2_morl_morl
+
+dual_cnn 0 25 w3_mexh_morl
+dual_cnn 1 25 w3_mexh_morl
+dual_cnn 2 25 w3_mexh_morl
+dual_cnn 3 25 w3_mexh_morl
+dual_cnn 4 25 w3_mexh_morl
+
+dual_cnn 0 25 w4_gaus4_morl
+dual_cnn 1 25 w4_gaus4_morl
+dual_cnn 2 25 w4_gaus4_morl
+dual_cnn 3 25 w4_gaus4_morl
+dual_cnn 4 25 w4_gaus4_morl
+
+dual_cnn 0 25 w5_cmor_cmor
+dual_cnn 1 25 w5_cmor_cmor
+dual_cnn 2 25 w5_cmor_cmor
+dual_cnn 3 25 w5_cmor_cmor
+dual_cnn 4 25 w5_cmor_cmor
+
+dual_cnn 0 25 w6_cmor_mexh
+dual_cnn 1 25 w6_cmor_mexh
+dual_cnn 2 25 w6_cmor_mexh
+dual_cnn 3 25 w6_cmor_mexh
+dual_cnn 4 25 w6_cmor_mexh
+
+dual_cnn 0 25 w7_cmor_gaus4
+dual_cnn 1 25 w7_cmor_gaus4
+dual_cnn 2 25 w7_cmor_gaus4
+dual_cnn 3 25 w7_cmor_gaus4
+dual_cnn 4 25 w7_cmor_gaus4
+

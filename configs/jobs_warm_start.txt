@@ -1,0 +1,8 @@
+# warm_start_fusion. Run only AFTER ecg_only and pcg_only have finished
+# all 5 folds and their checkpoints are synced as a second dataset.
+
+warm_start_fusion 0 50
+warm_start_fusion 1 50
+warm_start_fusion 2 50
+warm_start_fusion 3 50
+warm_start_fusion 4 50

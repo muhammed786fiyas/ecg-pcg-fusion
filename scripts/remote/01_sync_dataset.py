@@ -72,6 +72,15 @@ def build_payload(staging_dir, scalogram_configs, manifest_dir, params_path):
     print(f"added manifests: {count} files")
     total = total + count
 
+    # The deliberately leaky manifests for the split-protocol negative control.
+    # Small CSVs, and shipping them means arms B and C run from the same dataset
+    # as arm A - so the ONLY thing differing between the arms is the partition.
+    control_dir = os.path.join(os.path.dirname(manifest_dir), "manifests_negative_control")
+    if os.path.isdir(control_dir):
+        count = add_tree(archive, control_dir, "manifests_negative_control")
+        print(f"added negative-control manifests: {count} files")
+        total = total + count
+
     for family in TRAINING_FAMILIES:
         script = os.path.join("scripts", "modeling", family, "01_train.py")
         if not os.path.exists(script):
