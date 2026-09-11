@@ -27,6 +27,8 @@ TRAINING_FAMILIES = [
     "cbam_fusion",
     "cross_attn_fusion",
     "cross_attn_resnet18",
+    "resnet18_ecg_only",
+    "resnet18_pcg_only",
 ]
 
 

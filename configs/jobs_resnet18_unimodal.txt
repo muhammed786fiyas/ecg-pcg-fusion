@@ -1,0 +1,16 @@
+# family fold max_epochs [config] [variant_tag] [negative_control]
+# ResNet-18 unimodal baselines, added 2026-09-11. Same schedule as
+# cross_attn_resnet18 in jobs_main.txt (50 epochs, early stopping on
+# inner-validation AUC), default scalograms, record-level CV folds.
+
+resnet18_ecg_only 0 50
+resnet18_ecg_only 1 50
+resnet18_ecg_only 2 50
+resnet18_ecg_only 3 50
+resnet18_ecg_only 4 50
+
+resnet18_pcg_only 0 50
+resnet18_pcg_only 1 50
+resnet18_pcg_only 2 50
+resnet18_pcg_only 3 50
+resnet18_pcg_only 4 50

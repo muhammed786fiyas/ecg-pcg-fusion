@@ -73,6 +73,25 @@ Also checked ad hoc: an equal-weight average of the `ecg_only` and `pcg_only`
 record probabilities (nothing fitted) gives patient AUC 0.840 +/- 0.093 against
 0.864 for `ecg_only`, lower in 4 of 5 folds.
 
+## ResNet-18 unimodal baselines (added 2026-09-11)
+
+`resnet18_ecg_only` and `resnet18_pcg_only`: one branch of `cross_attn_resnet18`
+(pretrained ResNet-18, 1x1 projection to 256, mean-pooled) and a
+`Linear(256, 128) -> ReLU -> Dropout -> Linear(128, 1)` head. Everything else in
+the script is a byte-for-byte copy of the fusion model's, so the comparison
+isolates exactly the second modality plus the cross-attention.
+
+Why they were needed: the custom-CNN ablation compares fusion against unimodal
+models with a *different* backbone from the best model, so it cannot say whether
+`cross_attn_resnet18`'s +0.074 over `ecg_only` comes from the pretrained
+backbone or from the fusion. The permutation test above says the fusion model
+barely uses PCG, but a model trained without PCG might compensate - only these
+baselines settle it.
+
+Honesty note for the paper: they were added after the CV results were seen.
+They are baselines trained with the fusion model's own recipe, not tuned models,
+so post-hoc selection cannot favour them; state them as a follow-up ablation.
+
 ## Decision threshold: validation-fitted screening points
 
 `scripts/evaluation/06_screening_threshold.py`, on `cross_attn_resnet18`,

@@ -22,6 +22,8 @@ FAMILIES = [
     "cross_attn_fusion",
     "cross_attn_resnet18",
     "warm_start_fusion",
+    "resnet18_ecg_only",
+    "resnet18_pcg_only",
 ]
 
 CUSTOM_BACKBONE_FAMILIES = [
@@ -109,19 +111,21 @@ def test_unimodal_models_use_only_their_own_modality():
     ecg, pcg = synthetic_batch()
     other = torch.randn(BATCH, 1, IMAGE_SIZE, IMAGE_SIZE)
 
-    ecg_model = load_family("ecg_only").build_model(load_params())
-    ecg_model.eval()
-    with torch.no_grad():
-        assert torch.allclose(ecg_model(ecg, pcg), ecg_model(ecg, other)), (
-            "ecg_only changed its output when only the PCG input changed"
-        )
+    for family in ["ecg_only", "resnet18_ecg_only"]:
+        ecg_model = load_family(family).build_model(load_params())
+        ecg_model.eval()
+        with torch.no_grad():
+            assert torch.allclose(ecg_model(ecg, pcg), ecg_model(ecg, other)), (
+                f"{family} changed its output when only the PCG input changed"
+            )
 
-    pcg_model = load_family("pcg_only").build_model(load_params())
-    pcg_model.eval()
-    with torch.no_grad():
-        assert torch.allclose(pcg_model(ecg, pcg), pcg_model(other, pcg)), (
-            "pcg_only changed its output when only the ECG input changed"
-        )
+    for family in ["pcg_only", "resnet18_pcg_only"]:
+        pcg_model = load_family(family).build_model(load_params())
+        pcg_model.eval()
+        with torch.no_grad():
+            assert torch.allclose(pcg_model(ecg, pcg), pcg_model(other, pcg)), (
+                f"{family} changed its output when only the ECG input changed"
+            )
 
 
 def test_fusion_models_use_both_modalities():

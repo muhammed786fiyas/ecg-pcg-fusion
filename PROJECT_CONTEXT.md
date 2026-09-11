@@ -112,11 +112,15 @@ patient-level-leaking split.
 ### Next, in order
 
 1. Revoke the exposed HuggingFace token (no replacement needed: no public demo).
-2. Retire `scripts/serving/gradio_demo.py`; move the REST API and the Docker
+2. **In progress: ResNet-18 ECG-only and PCG-only baselines**
+   (`resnet18_ecg_only`, `resnet18_pcg_only`; 10 Kaggle jobs in
+   `configs/jobs_resnet18_unimodal.txt`, ~1.2 GPU-hours). The owner's order:
+   these first, then choose among improvement ideas 2-5 on the result (stronger
+   pretrained backbone, training recipe, PCG pretraining on PhysioNet 2016
+   subsets B-F, the gaus4 ECG wavelet).
+3. Retire `scripts/serving/gradio_demo.py`; move the REST API and the Docker
    inference image to `cross_attn_resnet18` (owner approved).
-3. Grad-CAM on `cross_attn_resnet18` across folds, reported in Hz.
-4. Proposed, awaiting owner: ResNet-18 ECG-only and PCG-only baselines
-   (~1.2 GPU-hours) - the direct test of whether fusion helps at ResNet level.
+4. Grad-CAM on `cross_attn_resnet18` across folds, reported in Hz.
 
 ### Known open items
 

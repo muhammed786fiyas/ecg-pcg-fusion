@@ -94,6 +94,11 @@ modeling:
   cbam_fusion: {lr: 1.0e-4, cbam_reduction: 16, cbam_spatial_kernel: 7}
   cross_attn_fusion: {lr: 1.0e-4, n_heads: 4, head_dim: 64}
   cross_attn_resnet18: {lr: 1.0e-4, n_heads: 4, head_dim: 64, proj_dim: 256}
+  # ResNet-18 unimodal baselines, added 2026-09-11: one branch of
+  # cross_attn_resnet18 with no fusion, same lr and proj_dim - the direct test
+  # of whether fusion helps at the ResNet level.
+  resnet18_ecg_only: {lr: 1.0e-4, proj_dim: 256}
+  resnet18_pcg_only: {lr: 1.0e-4, proj_dim: 256}
 
 evaluation:
   cv_folds: 5
