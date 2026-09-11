@@ -50,6 +50,29 @@ on this same dataset.
 
 Reported by `scripts/evaluation/05_paired_model_comparison.py`.
 
+## Does the fusion model use the PCG? Modality permutation test
+
+`scripts/evaluation/07_modality_permutation.py`. Within each fold's test
+records, one modality is replaced by the same modality from a different record
+(a record-level derangement, 5 permutations per fold, averaged), and the
+record-level AUC is recomputed. Nothing is fitted.
+
+| model | intact | PCG swapped | ECG swapped |
+|---|---|---|---|
+| `cross_attn_resnet18` | 0.938 +/- 0.039 | 0.913 +/- 0.049 (drop 0.024 +/- 0.018, 4/5) | 0.525 +/- 0.031 |
+| `cross_attn_fusion` | 0.851 +/- 0.081 | 0.787 +/- 0.070 (drop 0.064 +/- 0.031, 5/5) | 0.545 +/- 0.050 |
+
+The best model is nearly an ECG-only model: the wrong patient's PCG costs 0.024
+AUC, the wrong ECG costs everything. Caveat for the paper: a swapped pair is
+off-distribution for the cross-attention, so the drop bounds the model's
+reliance on the matching PCG rather than measuring the information PCG carries;
+a model trained without PCG could compensate. The clean test is a ResNet-18
+ECG-only baseline, which was never trained.
+
+Also checked ad hoc: an equal-weight average of the `ecg_only` and `pcg_only`
+record probabilities (nothing fitted) gives patient AUC 0.840 +/- 0.093 against
+0.864 for `ecg_only`, lower in 4 of 5 folds.
+
 ## Decision threshold: validation-fitted screening points
 
 `scripts/evaluation/06_screening_threshold.py`, on `cross_attn_resnet18`,

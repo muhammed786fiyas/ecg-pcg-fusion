@@ -98,11 +98,25 @@ patient-level-leaking split.
   data and is not a valid operating point. The sweep goes in the paper as the
   trade-off. See `reports/screening_threshold/cross_attn_resnet18/summary.md`.
 - **No public demo (owner decision).** The local demo is enough.
+- **Fusion adds little on top of ECG, measured two ways.** (1) Modality
+  permutation test (`scripts/evaluation/07_modality_permutation.py`): swapping
+  each test record's PCG for another record's costs `cross_attn_resnet18` only
+  0.024 +/- 0.018 patient AUC (0.938 -> 0.913, 4/5 folds); swapping its ECG
+  drops it to chance (0.525). `cross_attn_fusion` leans on PCG more (-0.064,
+  5/5) but is no better than ECG alone. (2) Averaging the `ecg_only` and
+  `pcg_only` record probabilities (equal weights, nothing fitted) gives 0.840
+  vs 0.864 for ECG alone. **Still missing: a ResNet-18 ECG-only baseline.**
+  Without it, "the gain comes from the backbone, not the fusion" is inferred,
+  not measured.
 
 ### Next, in order
 
 1. Revoke the exposed HuggingFace token (no replacement needed: no public demo).
-2. Grad-CAM on `cross_attn_resnet18` across folds, reported in Hz.
+2. Retire `scripts/serving/gradio_demo.py`; move the REST API and the Docker
+   inference image to `cross_attn_resnet18` (owner approved).
+3. Grad-CAM on `cross_attn_resnet18` across folds, reported in Hz.
+4. Proposed, awaiting owner: ResNet-18 ECG-only and PCG-only baselines
+   (~1.2 GPU-hours) - the direct test of whether fusion helps at ResNet level.
 
 ### Known open items
 
