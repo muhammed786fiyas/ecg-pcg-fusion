@@ -154,6 +154,11 @@ patient-level-leaking split.
   `dvc.lock`. Uploading to Kaggle as `ecg-pcg-fusion-pcg-pretrain` for the
   single pretraining job; the main dataset gets a new version with the
   fine-tuning scripts.
+- **Pretraining done:** 6.9 GPU-minutes, 11 epochs; B-F validation segment AUC
+  0.987, record AUC 0.978 - a sanity check only, likely inflated by
+  hospital-label confounding (subsets differ sharply in abnormal share and the
+  split keeps every hospital in both partitions). Checkpoint uploaded as
+  `ecg-pcg-fusion-pcg-init`; 10 fine-tuning jobs queued behind it.
 
 ### Next, in order
 

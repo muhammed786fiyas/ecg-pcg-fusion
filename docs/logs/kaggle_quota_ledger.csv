@@ -79,3 +79,4 @@ date,kernel,family,config,fold,state,hours,wall_clock_hours,weekly_total
 2026-09-11 22:13,ecgpcg-resnet18-pcg-only-default-cv-fold2,resnet18_pcg_only,default,2,complete,0.0778,0.0778,0.6347
 2026-09-11 22:19,ecgpcg-resnet18-pcg-only-default-cv-fold3,resnet18_pcg_only,default,3,complete,0.0706,0.0706,0.7053
 2026-09-11 22:21,ecgpcg-resnet18-pcg-only-default-cv-fold4,resnet18_pcg_only,default,4,complete,0.0948,0.0948,0.8001
+2026-09-12 02:45,ecgpcg-pcg-pretrain-pcg-pretrain-cv-fold0,pcg_pretrain,pcg_pretrain,0,complete,0.1156,0.1156,0.1156
