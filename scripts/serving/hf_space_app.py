@@ -15,11 +15,18 @@ distribution than it was trained on fails quietly:
   3. one probability per window, aggregated to a record-level probability by
      the mean - the best of the three strategies compared in the study
 
+The decision threshold is read from model/decision.json: the highest threshold
+that reached the target sensitivity on the deployed fold's inner-validation
+records (scripts/evaluation/06_screening_threshold.py). Without that file it
+falls back to 0.5. The text shown to users follows the actual value - it does
+not assume the fitted threshold came out below 0.5, because it need not.
+
 This file is staged into the Space as app.py by build_hf_space.py.
 
 Research demo. NOT a medical device.
 """
 
+import json
 import os
 import shutil
 import tempfile
@@ -39,6 +46,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 MODEL_PATH = os.environ.get("MODEL_PATH", os.path.join("model", "cross_attn_resnet18.pth"))
+DECISION_PATH = os.environ.get("DECISION_PATH", os.path.join("model", "decision.json"))
 EXAMPLE_DIR = "examples"
 
 FS = 2000
@@ -56,7 +64,7 @@ PEAK_METHOD = "pantompkins1985"
 DROPOUT = 0.5
 N_HEADS = 4
 PROJ_DIM = 256
-THRESHOLD = 0.5
+DEFAULT_THRESHOLD = 0.5
 CAM_EPSILON = 1e-8
 OVERLAY_ALPHA = 0.45
 N_FREQ_TICKS = 5
@@ -66,7 +74,7 @@ DISCLAIMER = (
     "clinical decision."
 )
 
-STATE = {"model": None}
+STATE = {"model": None, "decision": {"threshold": DEFAULT_THRESHOLD}}
 
 
 # ---------------------------------------------------------------- model
@@ -134,6 +142,17 @@ def load_model():
     model.eval()
     print(f"loaded {MODEL_PATH}")
     return model
+
+
+def load_decision():
+    """The decision threshold and its cross-validated rates, if staged."""
+    if not os.path.exists(DECISION_PATH):
+        print(f"no {DECISION_PATH}, using threshold {DEFAULT_THRESHOLD}")
+        return {"threshold": DEFAULT_THRESHOLD}
+    with open(DECISION_PATH) as handle:
+        decision = json.load(handle)
+    print(f"decision threshold {round(decision['threshold'], 3)} from {DECISION_PATH}")
+    return decision
 
 
 # ---------------------------------------------------------- preprocessing
@@ -331,6 +350,40 @@ def render(ecg_image, pcg_image, cams, title):
 # ------------------------------------------------------------- analysis
 
 
+def example_truth(files):
+    """Ground-truth label of a bundled example, read from its file name."""
+    for path in as_paths(files):
+        name = os.path.basename(path)
+        if name.startswith("normal_"):
+            return "normal"
+        if name.startswith("abnormal_"):
+            return "abnormal"
+    return ""
+
+
+def threshold_note(decision):
+    """State the operating point as it actually is, with its cross-validated rates."""
+    threshold = decision["threshold"]
+    if "fold_test_sensitivity" not in decision:
+        return f"Decision threshold: **{round(threshold, 3)}**.\n\n"
+    if threshold < DEFAULT_THRESHOLD:
+        relation = "below the default 0.5, set low for screening"
+    else:
+        relation = "at or above the default 0.5"
+    if decision["target_sensitivity"] >= 1.0:
+        target_text = "every abnormal validation record"
+    else:
+        target_text = f"at least {round(100 * decision['target_sensitivity'])}% of abnormal validation records"
+    return (
+        f"Decision threshold: **{round(threshold, 3)}**, {relation} - the highest threshold still "
+        f"catching {target_text}. On this model's held-out test fold it detects "
+        f"**{round(100 * decision['fold_test_sensitivity'])}%** of abnormal records and clears "
+        f"**{round(100 * decision['fold_test_specificity'])}%** of normal ones; across all five "
+        f"cross-validation folds the same procedure averaged "
+        f"{round(100 * decision['cv_sensitivity'])}% and {round(100 * decision['cv_specificity'])}%.\n\n"
+    )
+
+
 def analyse(files):
     try:
         ecg, pcg = read_upload(files)
@@ -352,6 +405,8 @@ def analyse(files):
         ), None
 
     model = STATE["model"]
+    decision = STATE["decision"]
+    threshold = decision["threshold"]
     images = []
     probabilities = []
     with torch.no_grad():
@@ -364,7 +419,7 @@ def analyse(files):
             images.append((ecg_image, pcg_image))
 
     record_probability = float(np.mean(probabilities))
-    if record_probability >= THRESHOLD:
+    if record_probability >= threshold:
         label = "abnormal"
         shown = int(np.argmax(probabilities))
     else:
@@ -392,32 +447,22 @@ def analyse(files):
         else:
             truth_note = (
                 f"Ground truth for this example record: **{truth}** - **the prediction is wrong.** "
-                "This model's most common error is calling normal records abnormal: its "
-                "patient-level specificity in cross-validation was 0.77, against a "
-                "sensitivity of 0.93.\n\n"
+                "This model's most common error is calling normal records abnormal, and a "
+                "screening threshold makes that error more common on purpose.\n\n"
             )
+
     summary = (
         f"## Prediction: **{label}**\n\n"
         f"Record-level P(abnormal) = **{round(record_probability, 3)}** - the mean over "
         f"{len(windows)} beat-centred 3 s windows.\n\n"
-        f"Per-window probabilities: {per_window}\n\n"
+        + threshold_note(decision)
+        + f"Per-window probabilities: {per_window}\n\n"
         + truth_note
-        + f"The heatmap shows the window that most supports the prediction. Grad-CAM here "
-        f"comes from a 7 x 7 feature map, so it is coarse by construction.\n\n"
-        f"{DISCLAIMER}"
+        + "The heatmap shows the window that most supports the prediction. Grad-CAM here "
+        "comes from a 7 x 7 feature map, so it is coarse by construction.\n\n"
+        + DISCLAIMER
     )
     return summary, figure
-
-
-def example_truth(files):
-    """Ground-truth label of a bundled example, read from its file name."""
-    for path in as_paths(files):
-        name = os.path.basename(path)
-        if name.startswith("normal_"):
-            return "normal"
-        if name.startswith("abnormal_"):
-            return "abnormal"
-    return ""
 
 
 def example_inputs():
@@ -459,6 +504,7 @@ def build_interface():
 
 def main():
     STATE["model"] = load_model()
+    STATE["decision"] = load_decision()
     build_interface().launch()
 
 

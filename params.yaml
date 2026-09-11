@@ -99,6 +99,17 @@ evaluation:
   cv_folds: 5
   aggregation_strategies: [majority_vote, mean_prob, max_prob]
   decision_threshold: 0.5
+  # Screening operating point, used by the demo. The decision threshold is
+  # lowered until the record-level sensitivity on each fold's INNER-VALIDATION
+  # records reaches this target, then applied to that fold's test records.
+  # Fitted on validation, never on test (split rule 5). 1.0 = catch every
+  # abnormal validation record; the owner asked for a low threshold, and 0.95
+  # did not lower it (fold 0 came out at 0.522). The paper's headline numbers
+  # stay at decision_threshold 0.5.
+  screening_target_sensitivity: 1.0
+  # Reported beside the primary target, each fitted on validation the same way,
+  # so the price of asking for more sensitivity is visible.
+  screening_sweep_targets: [0.90, 0.95, 0.98, 1.0]
   gradcam_n_segments: 12
 
 compute:

@@ -50,6 +50,30 @@ on this same dataset.
 
 Reported by `scripts/evaluation/05_paired_model_comparison.py`.
 
+## Decision threshold: validation-fitted screening points
+
+`scripts/evaluation/06_screening_threshold.py`, on `cross_attn_resnet18`,
+record-level mean aggregation. Per fold, the highest threshold reaching the
+target sensitivity on the inner-validation records, applied to test:
+
+| validation target | threshold (fold 0) | test sensitivity | test specificity |
+|---|---|---|---|
+| default 0.5 | 0.5 | 0.931 +/- 0.033 | 0.770 +/- 0.041 |
+| 90% | 0.657 +/- 0.127 (0.598) | 0.903 +/- 0.032 | 0.829 +/- 0.076 |
+| 95% | 0.428 +/- 0.147 (0.522) | 0.938 +/- 0.028 | 0.743 +/- 0.090 |
+| 98% = 100% | 0.129 +/- 0.133 (0.378) | 0.983 +/- 0.022 | 0.486 +/- 0.200 |
+
+**Decision:** the demo deploys the 100% target (fold 0: 0.378); the paper's
+headline numbers stay at 0.5 and the sweep is reported as the operating-point
+trade-off. Moderate targets buy almost nothing; the 100% target buys ~5 points
+of sensitivity for ~28 points of specificity, and its threshold is set by one
+record per fold, so it swings from 0.0001 to 0.378. A threshold chosen on test
+would have looked far better (0.31 gave 0.972 / 0.641) - that is the leak rule 5
+exists to stop. Worth a sentence in the paper: operating-point selection needs
+more validation data than five-fold CV on 405 records provides.
+
+`tests/test_screening_threshold.py` pins the fitting rule.
+
 ## Key decisions
 
 ### The model definitions and the Dataset class are duplicated across training scripts, on purpose

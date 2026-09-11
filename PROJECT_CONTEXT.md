@@ -87,6 +87,17 @@ patient-level-leaking split.
   any commit. A local pre-commit hook and `tests/test_no_secrets.py` now block
   credential-shaped strings. The owner should revoke that token.
 
+- **Demo uses a low, validation-fitted screening threshold: 0.378.** Per fold,
+  the highest threshold catching every abnormal inner-validation record
+  (`evaluation.screening_target_sensitivity: 1.0`). Cross-validated test:
+  sensitivity 0.983 +/- 0.022, specificity 0.486 +/- 0.200, against 0.931 /
+  0.770 at 0.5. Fold 0 (deployed): 0.966 / 0.739. The fitted threshold is
+  unstable (0.0001-0.378 across folds). A 95% target did not lower it at all
+  (fold 0: 0.522). An earlier "0.31 gives 0.972 sensitivity at 0.641
+  specificity" figure was chosen on test data and is not a valid operating
+  point. Paper headline numbers stay at 0.5. See
+  `reports/screening_threshold/cross_attn_resnet18/summary.md`.
+
 ### Next, in order
 
 1. **Owner decision: where to host the public demo** — HuggingFace PRO, a free
