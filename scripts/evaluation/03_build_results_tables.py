@@ -30,6 +30,8 @@ MAIN_FAMILY_ORDER = [
     ("warm_start_fusion", "Dual-branch + warm-start", "Concatenation", "Custom 4-block, unimodal init"),
     ("cbam_fusion", "Dual-branch + CBAM", "Channel+spatial attn", "Custom 4-block"),
     ("cross_attn_fusion", "**Dual-branch + cross-attn**", "Cross-modal attention", "Custom 4-block"),
+    ("resnet18_ecg_only", "ECG-only ResNet-18", "--", "Pretrained ResNet-18"),
+    ("resnet18_pcg_only", "PCG-only ResNet-18", "--", "Pretrained ResNet-18"),
     ("cross_attn_resnet18", "ResNet-18 + cross-attn", "Cross-modal attention", "Pretrained ResNet-18"),
 ]
 

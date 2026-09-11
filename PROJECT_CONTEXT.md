@@ -51,14 +51,19 @@ separately; 29 early rows were reconciled from the kernel logs.
 | `warm_start_fusion` | 0.8402 ± 0.0486 | 0.8650 ± 0.0569 |
 | `cbam_fusion` | 0.8747 ± 0.0554 | 0.8945 ± 0.0685 |
 | `cross_attn_fusion` | 0.8218 ± 0.0657 | 0.8508 ± 0.0810 |
+| `resnet18_ecg_only` (added day 2) | 0.9150 ± 0.0226 | 0.9300 ± 0.0258 |
+| `resnet18_pcg_only` (added day 2) | 0.7146 ± 0.0618 | 0.7413 ± 0.0778 |
 | **`cross_attn_resnet18`** | **0.9216 ± 0.0302** | **0.9380 ± 0.0386** |
 
-**Headline finding: no custom-CNN fusion variant is distinguishable from ECG
-alone.** Paired per-fold against `ecg_only` (patient AUC): `dual_cnn` −0.014
+**Headline finding: no fusion variant is distinguishable from ECG alone - with
+custom CNNs or with ResNet-18.** Paired per-fold against `ecg_only` (patient AUC): `dual_cnn` −0.014
 (p=0.33), `cross_attn_fusion` −0.013 (p=0.35), `cbam_fusion` +0.031 (p=0.17),
 `warm_start_fusion` ≈ 0. Only `cross_attn_resnet18` rises above, +0.074
-(p=0.095) — and since it shares the identical cross-attention block, **the gain
-comes from the pretrained backbone, not the fusion**. `pcg_only` is clearly
+(p=0.095) — and **the gain comes from the pretrained backbone, not the fusion,
+now measured directly**: a ResNet-18 on ECG alone (`resnet18_ecg_only`, added
+2026-09-11) scores 0.930 ± 0.026, and fusion adds +0.008 on top (wins 2-3,
+p=0.50). The same backbone lifts PCG-only from 0.652 to 0.741 (5/5 folds,
+p=0.012), still far below ECG. `pcg_only` is clearly
 worse (−0.212, p=0.001). This replicates Kıymık (Physiol Meas 2026) and
 contradicts the old pipeline's fusion-wins ordering, which came from a
 patient-level-leaking split.
@@ -105,9 +110,8 @@ patient-level-leaking split.
   drops it to chance (0.525). `cross_attn_fusion` leans on PCG more (-0.064,
   5/5) but is no better than ECG alone. (2) Averaging the `ecg_only` and
   `pcg_only` record probabilities (equal weights, nothing fitted) gives 0.840
-  vs 0.864 for ECG alone. **Still missing: a ResNet-18 ECG-only baseline.**
-  Without it, "the gain comes from the backbone, not the fusion" is inferred,
-  not measured.
+  vs 0.864 for ECG alone. The ResNet-18 ECG-only baseline has since settled
+  it: 0.930 alone vs 0.938 with fusion (+0.008, p=0.50).
 - **Serving moved to `cross_attn_resnet18`; `gradio_demo.py` retired.** The REST
   API and the Docker inference image now serve the best model (fold 0, chosen
   by inner-validation AUC), the same weights as the Gradio demo. Image 2.07 GB
@@ -124,16 +128,23 @@ patient-level-leaking split.
   QRS" is withdrawn - both halves were mostly axis geometry. What holds:
   time-localisation (custom CNN 5-6x a flat map). See
   `docs/logs/tasks/4-interpretability.md`.
+- **ResNet-18 unimodal baselines: fusion adds nothing detectable.** 10/10
+  Kaggle jobs, 0 failed, 0.8 GPU-hours. `resnet18_ecg_only` 0.930 ± 0.026,
+  `resnet18_pcg_only` 0.741 ± 0.078, against `cross_attn_resnet18` 0.938 ±
+  0.039. Paired: fusion minus ECG-only ResNet +0.008 (sd 0.024, wins 2-3,
+  p=0.50); ResNet minus custom CNN on ECG +0.066 (p=0.15), on PCG +0.089 (5/5,
+  p=0.012). The fusion model's only edge is specificity (0.770 vs 0.733) at
+  equal sensitivity (0.931). Tables: `reports/figures/ablation_table.md` and
+  `paired_comparison_patient_auc.md` (now every pair, not only vs `ecg_only`).
 
 ### Next, in order
 
 1. Revoke the exposed HuggingFace token (no replacement needed: no public demo).
-2. **In progress: ResNet-18 ECG-only and PCG-only baselines**
-   (`resnet18_ecg_only`, `resnet18_pcg_only`; 10 Kaggle jobs in
-   `configs/jobs_resnet18_unimodal.txt`, ~1.2 GPU-hours). The owner's order:
-   these first, then choose among improvement ideas 2-5 on the result (stronger
-   pretrained backbone, training recipe, PCG pretraining on PhysioNet 2016
-   subsets B-F, the gaus4 ECG wavelet).
+2. **Owner decision: which improvement ideas to run next**, now that the
+   ResNet-18 baselines are in (fusion adds +0.008 over ResNet-18 ECG-only).
+   Options: stronger pretrained backbone, training recipe (time/frequency
+   masking, lower backbone lr), PCG pretraining on PhysioNet 2016 subsets B-F,
+   the gaus4 ECG wavelet. Any run chosen now is a declared follow-up.
 
 ### Known open items
 

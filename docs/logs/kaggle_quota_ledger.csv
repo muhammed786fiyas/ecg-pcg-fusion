@@ -69,3 +69,13 @@ date,kernel,family,config,fold,state,hours,wall_clock_hours,weekly_total
 2026-09-10 22:29,ecgpcg-dual-cnn-w7-cmor-gaus4-cv-fold4,dual_cnn,w7_cmor_gaus4,4,complete,0.0883,0.0883,8.8647
 2026-09-10 22:35,ecgpcg-warm-start-fusion-default-cv-fold0,warm_start_fusion,default,0,complete,0.0759,0.0759,8.9406
 2026-09-10 22:42,ecgpcg-warm-start-fusion-default-cv-fold2,warm_start_fusion,default,2,complete,0.1738,0.1738,9.1144
+2026-09-11 21:52,ecgpcg-resnet18-ecg-only-default-cv-fold0,resnet18_ecg_only,default,0,complete,0.0673,0.0673,0.0673
+2026-09-11 21:53,ecgpcg-resnet18-ecg-only-default-cv-fold1,resnet18_ecg_only,default,1,complete,0.0892,0.0892,0.1565
+2026-09-11 21:59,ecgpcg-resnet18-ecg-only-default-cv-fold3,resnet18_ecg_only,default,3,complete,0.0702,0.0702,0.2267
+2026-09-11 22:01,ecgpcg-resnet18-ecg-only-default-cv-fold2,resnet18_ecg_only,default,2,complete,0.1087,0.1087,0.3354
+2026-09-11 22:06,ecgpcg-resnet18-ecg-only-default-cv-fold4,resnet18_ecg_only,default,4,complete,0.0933,0.0933,0.4287
+2026-09-11 22:07,ecgpcg-resnet18-pcg-only-default-cv-fold0,resnet18_pcg_only,default,0,complete,0.0719,0.0719,0.5006
+2026-09-11 22:12,ecgpcg-resnet18-pcg-only-default-cv-fold1,resnet18_pcg_only,default,1,complete,0.0563,0.0563,0.5569
+2026-09-11 22:13,ecgpcg-resnet18-pcg-only-default-cv-fold2,resnet18_pcg_only,default,2,complete,0.0778,0.0778,0.6347
+2026-09-11 22:19,ecgpcg-resnet18-pcg-only-default-cv-fold3,resnet18_pcg_only,default,3,complete,0.0706,0.0706,0.7053
+2026-09-11 22:21,ecgpcg-resnet18-pcg-only-default-cv-fold4,resnet18_pcg_only,default,4,complete,0.0948,0.0948,0.8001

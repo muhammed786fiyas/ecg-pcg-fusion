@@ -92,6 +92,19 @@ Honesty note for the paper: they were added after the CV results were seen.
 They are baselines trained with the fusion model's own recipe, not tuned models,
 so post-hoc selection cannot favour them; state them as a follow-up ablation.
 
+**Result** (record-level 5-fold CV, patient AUC, mean ± std):
+
+| model | patient AUC | vs its counterpart, paired |
+|---|---|---|
+| `resnet18_ecg_only` | 0.930 ± 0.026 | +0.066 over `ecg_only` (wins 4-1, p=0.15) |
+| `resnet18_pcg_only` | 0.741 ± 0.078 | +0.089 over `pcg_only` (wins 5-0, p=0.012) |
+| `cross_attn_resnet18` | 0.938 ± 0.039 | **+0.008 over `resnet18_ecg_only`** (wins 2-3, p=0.50) |
+
+Fusion adds nothing detectable at the ResNet level either; the best model's
++0.074 over `ecg_only` is ~0.066 backbone. Its one visible edge is specificity
+(0.770 vs 0.733 at equal sensitivity 0.931), within fold noise. Consistent with
+the permutation test (wrong-patient PCG costs 0.024).
+
 ## Decision threshold: validation-fitted screening points
 
 `scripts/evaluation/06_screening_threshold.py`, on `cross_attn_resnet18`,
