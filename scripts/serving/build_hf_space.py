@@ -209,7 +209,7 @@ def upload(staging_dir, space_id, private):
                 "need a PRO subscription (https://huggingface.co/pro); only static "
                 "Spaces are free. No Space was created. The staged folder is ready to "
                 "upload once the account can host it."
-            )
+            ) from err
         raise
     api.upload_folder(folder_path=staging_dir, repo_id=space_id, repo_type="space",
                       commit_message="Deploy ECG-PCG cross_attn_resnet18 demo")

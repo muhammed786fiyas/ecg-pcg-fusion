@@ -97,6 +97,11 @@ sequences, or build them in the script with `chr(92)` (backslash) and
 `chr(10)` (newline). Always `ast.parse` or `ruff check` a patched file before
 moving on.
 
+**A pipe hides a failing exit code.** `ruff check ... | tail -1 && git commit`
+committed and pushed code with a lint error, because the chain saw `tail`
+succeed. Run any gate command (ruff, pytest) unpiped, or start the chain with
+`set -o pipefail`, before it is allowed to guard a commit.
+
 ---
 
 ## The split rules — the top correctness requirement
