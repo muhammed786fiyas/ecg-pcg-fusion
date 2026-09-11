@@ -15,11 +15,11 @@ distribution than it was trained on fails quietly:
   3. one probability per window, aggregated to a record-level probability by
      the mean - the best of the three strategies compared in the study
 
-The decision threshold is read from model/decision.json: the highest threshold
-that reached the target sensitivity on the deployed fold's inner-validation
-records (scripts/evaluation/06_screening_threshold.py). Without that file it
-falls back to 0.5. The text shown to users follows the actual value - it does
-not assume the fitted threshold came out below 0.5, because it need not.
+The decision threshold is read from model/decision.json, written by
+build_hf_space.py: 0.5. A lower validation-fitted screening threshold was
+evaluated (scripts/evaluation/06_screening_threshold.py) and not adopted - it
+roughly halved specificity for a few points of sensitivity. Without that file
+the app falls back to 0.5.
 
 This file is staged into the Space as app.py by build_hf_space.py.
 
@@ -366,20 +366,11 @@ def threshold_note(decision):
     threshold = decision["threshold"]
     if "fold_test_sensitivity" not in decision:
         return f"Decision threshold: **{round(threshold, 3)}**.\n\n"
-    if threshold < DEFAULT_THRESHOLD:
-        relation = "below the default 0.5, set low for screening"
-    else:
-        relation = "at or above the default 0.5"
-    if decision["target_sensitivity"] >= 1.0:
-        target_text = "every abnormal validation record"
-    else:
-        target_text = f"at least {round(100 * decision['target_sensitivity'])}% of abnormal validation records"
     return (
-        f"Decision threshold: **{round(threshold, 3)}**, {relation} - the highest threshold still "
-        f"catching {target_text}. On this model's held-out test fold it detects "
-        f"**{round(100 * decision['fold_test_sensitivity'])}%** of abnormal records and clears "
-        f"**{round(100 * decision['fold_test_specificity'])}%** of normal ones; across all five "
-        f"cross-validation folds the same procedure averaged "
+        f"Decision threshold: **{round(threshold, 3)}**. On this model's held-out test fold it "
+        f"detects **{round(100 * decision['fold_test_sensitivity'])}%** of abnormal records and "
+        f"clears **{round(100 * decision['fold_test_specificity'])}%** of normal ones; across all "
+        f"five cross-validation folds this model family averaged "
         f"{round(100 * decision['cv_sensitivity'])}% and {round(100 * decision['cv_specificity'])}%.\n\n"
     )
 
@@ -447,8 +438,7 @@ def analyse(files):
         else:
             truth_note = (
                 f"Ground truth for this example record: **{truth}** - **the prediction is wrong.** "
-                "This model's most common error is calling normal records abnormal, and a "
-                "screening threshold makes that error more common on purpose.\n\n"
+                "This model's most common error is calling normal records abnormal.\n\n"
             )
 
     summary = (

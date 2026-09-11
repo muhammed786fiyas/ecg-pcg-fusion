@@ -172,6 +172,11 @@ clear `QC FAIL`. A static Space cannot run PyTorch server-side, so staying free
 on HuggingFace would mean in-browser inference (ONNX + JavaScript, including a
 reimplementation of the CWT and R-peak detection) - a substantial rewrite.
 
+**Decision (owner, 2026-09-11): no public demo.** The staged Space runs locally
+and that is enough. `--upload` stays in the script but is not planned. The demo's
+decision threshold is 0.5; a low validation-fitted screening threshold (0.378)
+was deployed briefly and reverted - see `docs/logs/tasks/3-modeling.md`.
+
 ### Day 2: credentials
 
 A HuggingFace token reached `README.md` through a stray right-click paste during

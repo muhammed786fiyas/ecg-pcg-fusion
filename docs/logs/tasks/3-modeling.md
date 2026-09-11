@@ -63,9 +63,9 @@ target sensitivity on the inner-validation records, applied to test:
 | 95% | 0.428 +/- 0.147 (0.522) | 0.938 +/- 0.028 | 0.743 +/- 0.090 |
 | 98% = 100% | 0.129 +/- 0.133 (0.378) | 0.983 +/- 0.022 | 0.486 +/- 0.200 |
 
-**Decision:** the demo deploys the 100% target (fold 0: 0.378); the paper's
-headline numbers stay at 0.5 and the sweep is reported as the operating-point
-trade-off. Moderate targets buy almost nothing; the 100% target buys ~5 points
+**Decision:** 0.5 everywhere - the paper and the demo. The 100% target was
+briefly deployed in the demo (fold 0: 0.378) and reverted the same day by the
+owner; the sweep is reported as the operating-point trade-off. Moderate targets buy almost nothing; the 100% target buys ~5 points
 of sensitivity for ~28 points of specificity, and its threshold is set by one
 record per fold, so it swings from 0.0001 to 0.378. A threshold chosen on test
 would have looked far better (0.31 gave 0.972 / 0.641) - that is the leak rule 5

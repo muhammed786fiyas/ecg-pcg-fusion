@@ -87,24 +87,22 @@ patient-level-leaking split.
   any commit. A local pre-commit hook and `tests/test_no_secrets.py` now block
   credential-shaped strings. The owner should revoke that token.
 
-- **Demo uses a low, validation-fitted screening threshold: 0.378.** Per fold,
-  the highest threshold catching every abnormal inner-validation record
-  (`evaluation.screening_target_sensitivity: 1.0`). Cross-validated test:
-  sensitivity 0.983 +/- 0.022, specificity 0.486 +/- 0.200, against 0.931 /
-  0.770 at 0.5. Fold 0 (deployed): 0.966 / 0.739. The fitted threshold is
-  unstable (0.0001-0.378 across folds). A 95% target did not lower it at all
-  (fold 0: 0.522). An earlier "0.31 gives 0.972 sensitivity at 0.641
-  specificity" figure was chosen on test data and is not a valid operating
-  point. Paper headline numbers stay at 0.5. See
-  `reports/screening_threshold/cross_attn_resnet18/summary.md`.
+- **Decision threshold: 0.5, in the paper and the demo (owner decision).** A
+  lower, validation-fitted screening threshold was evaluated
+  (`scripts/evaluation/06_screening_threshold.py`), briefly deployed, and
+  reverted. Catching every abnormal inner-validation record gives
+  cross-validated test sensitivity 0.983 +/- 0.022 but specificity 0.486 +/-
+  0.200 (vs 0.931 / 0.770 at 0.5), and the fitted value swings 0.0001-0.378
+  across folds. A 95% target did not lower it at all (fold 0: 0.522). An earlier
+  "0.31 gives 0.972 sensitivity at 0.641 specificity" figure was chosen on test
+  data and is not a valid operating point. The sweep goes in the paper as the
+  trade-off. See `reports/screening_threshold/cross_attn_resnet18/summary.md`.
+- **No public demo (owner decision).** The local demo is enough.
 
 ### Next, in order
 
-1. **Owner decision: where to host the public demo** — HuggingFace PRO, a free
-   alternative, or no hosted demo. With PRO it is one command:
-   `python scripts/serving/build_hf_space.py --upload`.
-2. Revoke the exposed HuggingFace token; create a new one.
-3. Grad-CAM on `cross_attn_resnet18` across folds, reported in Hz.
+1. Revoke the exposed HuggingFace token (no replacement needed: no public demo).
+2. Grad-CAM on `cross_attn_resnet18` across folds, reported in Hz.
 
 ### Known open items
 
@@ -116,8 +114,9 @@ patient-level-leaking split.
   bands. See below.
 - **Grad-CAM gives a mixed answer** — PCG matches physiology, ECG does not. See
   `docs/logs/tasks/4-interpretability.md`.
-- The public Space is staged but not hosted: HuggingFace now charges for Gradio Spaces.
-  It runs locally unchanged: `cd .hf_space_staging && python app.py` (port 7860).
+- The ResNet-18 demo is local only, by owner decision (HuggingFace now charges
+  for Gradio Spaces anyway): `python scripts/serving/build_hf_space.py`, then
+  `cd .hf_space_staging && python app.py` (port 7860).
 
 ---
 

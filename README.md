@@ -94,10 +94,11 @@ cd .hf_space_staging
 conda run -n ecg_pcg python app.py                             # http://localhost:7860
 ```
 
-For a temporary public link (about 72 hours, while your machine stays on),
-change the last line of `app.py` to `launch(share=True)`. Hosting it on
-HuggingFace Spaces is ready (`build_hf_space.py --upload`) but Gradio Spaces
-now require a PRO subscription.
+The decision threshold is 0.5. A lower, validation-fitted screening threshold
+was evaluated and not adopted - see
+`reports/screening_threshold/cross_attn_resnet18/summary.md` after running
+`scripts/evaluation/06_screening_threshold.py`. The demo is local only; there is
+no hosted public version.
 
 **REST API**:
 

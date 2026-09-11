@@ -36,6 +36,9 @@ CHECKPOINT_GLOB = os.path.join("models", "cross_attn_resnet18", "default", "defa
 FOLD_ASSIGNMENTS = os.path.join("data", "processed", "manifests", "fold_assignments.csv")
 RECORDS_DIR = os.path.join("data", "interim", "records")
 SCREENING_JSON = os.path.join("reports", "screening_threshold", "cross_attn_resnet18", "thresholds.json")
+# Must stay 0.5: the rates quoted beside it are 06_screening_threshold.py's
+# "_at_0.5" columns. A lower screening threshold was evaluated and not adopted.
+DECISION_THRESHOLD = 0.5
 GITHUB_URL = "https://github.com/muhammed786fiyas/ecg-pcg-fusion"
 GRADIO_VERSION = "6.26.0"
 
@@ -103,30 +106,27 @@ fold**, picked by record ID *before* looking at the model's output - so they are
 not guaranteed to be classified correctly, and the demo shows each example's
 ground truth next to the prediction.
 
-## Decision threshold: set low, for screening
+## Decision threshold: 0.5
 
 The demo calls a record abnormal when its mean window probability reaches
-**{threshold:.3f}**, not 0.5. For screening, a missed abnormal heart costs more
-than a false alarm that leads to a further test, so the threshold is set low on
-purpose. It was fitted on fold {fold}'s **inner-validation** records as the
-highest threshold that still catches {target_phrase} - never on test data.
+**{threshold:.1f}**. On this model's own held-out test fold that detects
+**{fold_sens:.0%}** of abnormal records and clears **{fold_spec:.0%}** of normal
+ones; across all five cross-validation folds this model family averaged
+sensitivity **{cv_sens:.3f} +/- {cv_sens_std:.3f}** and specificity
+**{cv_spec:.3f} +/- {cv_spec_std:.3f}**.
 
-On this model's own held-out test fold it detects **{fold_sens:.0%}** of
-abnormal records and clears **{fold_spec:.0%}** of normal ones, against
-{fold_sens05:.0%} and {fold_spec05:.0%} at 0.5.
+A lower "screening" threshold was evaluated and not adopted. Fitting it on
+validation records to catch every abnormal validation record raised
+cross-validated sensitivity to {low_sens:.3f} but cut specificity to
+{low_spec:.3f} - about half of normal records flagged - and the fitted value was
+unstable ({low_t:.3f} +/- {low_t_std:.3f} across folds), because with about 49
+validation records per fold it is set by a single patient. In a real screening
+population, where most people are healthy, the extra false alarms would far
+outnumber the extra abnormal hearts caught.
 
-Across all five cross-validation folds the same procedure gives sensitivity
-**{cv_sens:.3f} +/- {cv_sens_std:.3f}** but specificity only
-**{cv_spec:.3f} +/- {cv_spec_std:.3f}**, against {sens05:.3f} and {spec05:.3f}
-at 0.5. So expect false alarms: catching nearly every abnormal record costs
-flagging many normal ones. The fitted threshold is also unstable - with only
-about 49 validation records per fold it ranged from {t_min:.3f} to {t_max:.3f}
-across folds, because it is set by the single lowest-scoring abnormal validation
-record. A milder target (95% on validation) barely moved sensitivity at all.
-
-Calling a record abnormal when *any* window looks abnormal lands in a similar
-place (sensitivity 0.972, specificity 0.513 in the study), because one noisy
-window out of roughly nine is enough.
+Calling a record abnormal when *any* window looks abnormal fails the same way
+(sensitivity 0.972, specificity 0.513 in the study), because one noisy window
+out of roughly nine is enough.
 
 ## Limitations worth knowing
 
@@ -199,9 +199,9 @@ def stage(staging_dir):
     torch.save({"model": state_dict}, model_path)
     print(f"  wrote {model_path} ({round(os.path.getsize(model_path) / 1048576.0, 1)} MB)")
 
-    # The screening threshold was fitted on THIS fold's inner-validation records
-    # by scripts/evaluation/06_screening_threshold.py, so it pairs with these
-    # weights. The cross-validated rates describe the procedure across folds.
+    # The threshold is the default 0.5. 06_screening_threshold.py supplies the
+    # rates at 0.5 (this fold's test and the cross-validated mean) and the
+    # screening alternative the README explains was not adopted.
     if not os.path.exists(SCREENING_JSON):
         raise SystemExit(f"QC FAIL: {SCREENING_JSON} not found - run scripts/evaluation/06_screening_threshold.py first")
     with open(SCREENING_JSON) as handle:
@@ -213,23 +213,18 @@ def stage(staging_dir):
         raise SystemExit(f"QC FAIL: no per-fold rates for fold {fold} in {SCREENING_JSON}")
     fold_row = fold_rows[0]
     decision = {
-        "threshold": screening["thresholds"][str(fold)],
-        "target_sensitivity": screening["target_sensitivity"],
+        "threshold": DECISION_THRESHOLD,
         "fold": fold,
-        "selection": screening["selection"],
-        "fold_test_sensitivity": fold_row["test_sensitivity"],
-        "fold_test_specificity": fold_row["test_specificity"],
-        "cv_sensitivity": screening["cv_test_screening"]["sensitivity_mean"],
-        "cv_specificity": screening["cv_test_screening"]["specificity_mean"],
+        "fold_test_sensitivity": fold_row["test_sensitivity_at_0.5"],
+        "fold_test_specificity": fold_row["test_specificity_at_0.5"],
+        "cv_sensitivity": screening["cv_test_at_0.5"]["sensitivity_mean"],
+        "cv_specificity": screening["cv_test_at_0.5"]["specificity_mean"],
     }
-    if screening["target_sensitivity"] >= 1.0:
-        target_phrase = "every abnormal validation record"
-    else:
-        target_phrase = f"at least {round(100 * screening['target_sensitivity'])}% of abnormal validation records"
-    fold_thresholds = list(screening["thresholds"].values())
+    # The rejected alternative, quoted in the README: the strictest validation target.
+    strictest = max(screening["sweep"], key=lambda row: row["target_sensitivity"])
     with open(os.path.join(staging_dir, "model", "decision.json"), "w") as handle:
         json.dump(decision, handle, indent=2)
-    print(f"  decision threshold {round(decision['threshold'], 3)} (fold {fold} validation)")
+    print(f"  decision threshold {decision['threshold']} (default; screening threshold evaluated, not adopted)")
 
     shutil.copy(APP_SOURCE, os.path.join(staging_dir, "app.py"))
     with open(os.path.join(staging_dir, "requirements.txt"), "w", newline="\n") as handle:
@@ -238,19 +233,16 @@ def stage(staging_dir):
         handle.write(README_TEMPLATE.format(
             gradio_version=GRADIO_VERSION, fold=fold, val_auc=val_auc, github_url=GITHUB_URL,
             threshold=decision["threshold"],
-            target_phrase=target_phrase,
-            fold_sens=fold_row["test_sensitivity"],
-            fold_spec=fold_row["test_specificity"],
-            fold_sens05=fold_row["test_sensitivity_at_0.5"],
-            fold_spec05=fold_row["test_specificity_at_0.5"],
-            t_min=min(fold_thresholds),
-            t_max=max(fold_thresholds),
-            cv_sens=screening["cv_test_screening"]["sensitivity_mean"],
-            cv_sens_std=screening["cv_test_screening"]["sensitivity_std"],
-            cv_spec=screening["cv_test_screening"]["specificity_mean"],
-            cv_spec_std=screening["cv_test_screening"]["specificity_std"],
-            sens05=screening["cv_test_at_0.5"]["sensitivity_mean"],
-            spec05=screening["cv_test_at_0.5"]["specificity_mean"],
+            fold_sens=decision["fold_test_sensitivity"],
+            fold_spec=decision["fold_test_specificity"],
+            cv_sens=screening["cv_test_at_0.5"]["sensitivity_mean"],
+            cv_sens_std=screening["cv_test_at_0.5"]["sensitivity_std"],
+            cv_spec=screening["cv_test_at_0.5"]["specificity_mean"],
+            cv_spec_std=screening["cv_test_at_0.5"]["specificity_std"],
+            low_sens=strictest["sensitivity_mean"],
+            low_spec=strictest["specificity_mean"],
+            low_t=strictest["threshold_mean"],
+            low_t_std=strictest["threshold_std"],
         ))
 
     export_examples(fold, os.path.join(staging_dir, "examples"))
