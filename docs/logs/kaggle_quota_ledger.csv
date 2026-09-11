@@ -80,3 +80,13 @@ date,kernel,family,config,fold,state,hours,wall_clock_hours,weekly_total
 2026-09-11 22:19,ecgpcg-resnet18-pcg-only-default-cv-fold3,resnet18_pcg_only,default,3,complete,0.0706,0.0706,0.7053
 2026-09-11 22:21,ecgpcg-resnet18-pcg-only-default-cv-fold4,resnet18_pcg_only,default,4,complete,0.0948,0.0948,0.8001
 2026-09-12 02:45,ecgpcg-pcg-pretrain-pcg-pretrain-cv-fold0,pcg_pretrain,pcg_pretrain,0,complete,0.1156,0.1156,0.1156
+2026-09-12 02:52,ecgpcg-resnet18-pcg-only-pcgpre-default-cv-fold1,resnet18_pcg_only_pcgpre,default,1,complete,0.0663,0.0663,0.0663
+2026-09-12 02:54,ecgpcg-resnet18-pcg-only-pcgpre-default-cv-fold0,resnet18_pcg_only_pcgpre,default,0,complete,0.1142,0.1142,0.1805
+2026-09-12 02:56,ecgpcg-resnet18-pcg-only-pcgpre-default-cv-fold2,resnet18_pcg_only_pcgpre,default,2,complete,0.0584,0.0584,0.2389
+2026-09-12 02:59,ecgpcg-resnet18-pcg-only-pcgpre-default-cv-fold3,resnet18_pcg_only_pcgpre,default,3,complete,0.0597,0.0597,0.2986
+2026-09-12 03:00,ecgpcg-resnet18-pcg-only-pcgpre-default-cv-fold4,resnet18_pcg_only_pcgpre,default,4,complete,0.0467,0.0467,0.3453
+2026-09-12 03:09,ecgpcg-cross-attn-resnet18-pcgpre-default-cv-fold1,cross_attn_resnet18_pcgpre,default,1,complete,0.1204,0.1204,0.4657
+2026-09-12 03:12,ecgpcg-cross-attn-resnet18-pcgpre-default-cv-fold0,cross_attn_resnet18_pcgpre,default,0,complete,0.1602,0.1602,0.6259
+2026-09-12 03:20,ecgpcg-cross-attn-resnet18-pcgpre-default-cv-fold2,cross_attn_resnet18_pcgpre,default,2,complete,0.1596,0.1596,0.7855
+2026-09-12 03:22,ecgpcg-cross-attn-resnet18-pcgpre-default-cv-fold3,cross_attn_resnet18_pcgpre,default,3,complete,0.1462,0.1462,0.9317
+2026-09-12 03:32,ecgpcg-cross-attn-resnet18-pcgpre-default-cv-fold4,cross_attn_resnet18_pcgpre,default,4,complete,0.1415,0.1415,1.0732

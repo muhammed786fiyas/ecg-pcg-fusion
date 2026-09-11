@@ -133,6 +133,29 @@ vs `resnet18_ecg_only` and vs `cross_attn_resnet18`.
 Limitation to state: the pretrained branch saw un-centred windows from other
 devices and sites; Training-A's are R-peak-centred.
 
+**Result (2026-09-12).** Pretraining: 6.9 GPU-minutes, 11 epochs, B-F
+validation segment AUC 0.987 / record AUC 0.978 - a sanity check only, likely
+inflated by hospital-label confounding. Fine-tuning, record-level 5-fold CV on
+Training-A, patient AUC:
+
+| model | patient AUC | paired vs |
+|---|---|---|
+| `resnet18_pcg_only_pcgpre` | 0.783 ± 0.032 | +0.042 vs `resnet18_pcg_only` 0.741 ± 0.078 (wins 3-2, p=0.31) |
+| `cross_attn_resnet18_pcgpre` | 0.922 ± 0.047 | -0.016 vs `cross_attn_resnet18` (wins 1-4, p=0.30); -0.008 vs `resnet18_ecg_only` (wins 2-3, p=0.54) |
+
+The PCG branch genuinely improved - +0.042 with the fold spread more than
+halved (0.078 -> 0.032) and specificity 0.546 -> 0.665 - and fusion still gained
+nothing. The permutation test confirms the mechanism: wrong-patient PCG costs
+the pretrained fusion model 0.020 ± 0.022 (3/5 folds) against 0.024 ± 0.018
+(4/5) un-pretrained, i.e. it uses the PCG no more than before, while
+wrong-patient ECG still drops it to chance (0.532).
+
+For the paper: this is the strongest form of the negative result. The fusion
+gain does not appear even when the weaker modality is pretrained on 7x more
+data from other hospitals. State the caveats - un-centred pretraining windows,
+a 13%-abnormal pretraining corpus against Training-A's 71%, and five folds of
+405 records - but the conclusion does not depend on them.
+
 ## Decision threshold: validation-fitted screening points
 
 `scripts/evaluation/06_screening_threshold.py`, on `cross_attn_resnet18`,

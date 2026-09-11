@@ -54,6 +54,8 @@ separately; 29 early rows were reconciled from the kernel logs.
 | `resnet18_ecg_only` (added day 2) | 0.9150 ± 0.0226 | 0.9300 ± 0.0258 |
 | `resnet18_pcg_only` (added day 2) | 0.7146 ± 0.0618 | 0.7413 ± 0.0778 |
 | **`cross_attn_resnet18`** | **0.9216 ± 0.0302** | **0.9380 ± 0.0386** |
+| `resnet18_pcg_only_pcgpre` (added day 3) | 0.7409 ± 0.0193 | 0.7832 ± 0.0318 |
+| `cross_attn_resnet18_pcgpre` (added day 3) | 0.9052 ± 0.0464 | 0.9219 ± 0.0468 |
 
 **Headline finding: no fusion variant is distinguishable from ECG alone - with
 custom CNNs or with ResNet-18.** Paired per-fold against `ecg_only` (patient AUC): `dual_cnn` −0.014
@@ -159,16 +161,29 @@ patient-level-leaking split.
   hospital-label confounding (subsets differ sharply in abnormal share and the
   split keeps every hospital in both partitions). Checkpoint uploaded as
   `ecg-pcg-fusion-pcg-init`; 10 fine-tuning jobs queued behind it.
+- **Result: PCG pretraining helps the PCG model a little, fusion not at all.**
+  10/10 jobs, 1.07 GPU-hours. `resnet18_pcg_only_pcgpre` 0.783 ± 0.032 vs
+  0.741 ± 0.078 for its twin (+0.042, wins 3-2, p=0.31; fold spread more than
+  halves, specificity 0.546 -> 0.665). `cross_attn_resnet18_pcgpre`
+  0.922 ± 0.047: **-0.016** vs `cross_attn_resnet18` (p=0.30) and **-0.008** vs
+  `resnet18_ecg_only` (p=0.54). The permutation test agrees - wrong-patient PCG
+  costs the pretrained fusion model 0.020 ± 0.022 (3/5 folds) against
+  0.024 ± 0.018 (4/5) before, so it leans on PCG no more than it did. All 10
+  runs logged `pcg_init`, verified in MLflow. **The last idea that could have
+  made fusion matter did not.**
 
 ### Next, in order
 
 1. Revoke the exposed HuggingFace token (no replacement needed: no public demo).
-2. **In progress (owner's choice): PCG pretraining on PhysioNet 2016 subsets
-   B-F** - build the B-F data, pretrain the ResNet-18 PCG branch on Kaggle,
-   fine-tune `resnet18_pcg_only_pcgpre` and `cross_attn_resnet18_pcgpre` on all
-   five folds, compare against their twins and `resnet18_ecg_only`. Designed and
-   committed before any result; see the Day 3 section. The other ideas
-   (stronger backbone, training recipe, gaus4 ECG) wait on this result.
+2. **Owner decision: stop improving and write up, or try another idea.** PCG
+   pretraining (step 4) is done and negative for fusion. What is left would
+   raise the ECG side, not change the fusion story: a stronger pretrained
+   backbone, a training recipe (time/frequency masking, lower backbone lr), or
+   the gaus4 ECG wavelet. On 405 records a gain under ~0.03 is not detectable,
+   and each is a declared follow-up chosen after seeing results. The paper's
+   three findings (fusion adds nothing under honest splits; Grad-CAM band
+   claims need a geometry baseline; leaky splits manufacture performance) do
+   not need any of them.
 
 ### Known open items
 
