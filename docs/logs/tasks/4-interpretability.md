@@ -1,8 +1,9 @@
 # Task log 4 — Interpretability
 
 ## Scope
-Contribution 2: Grad-CAM on `cross_attn_fusion`, and an honest read of whether
-the attention lands where cardiac physiology says it should.
+Contribution 2: Grad-CAM on the cross-attention models (`cross_attn_fusion`, and
+from 2026-09-11 `cross_attn_resnet18`), and an honest read of whether the
+attention lands where cardiac physiology says it should.
 
 ## Completed
 - Grad-CAM run on `cross_attn_fusion`, CV fold 0, 12 segments spanning correctly
@@ -10,7 +11,66 @@ the attention lands where cardiac physiology says it should.
   negatives. Figures in `reports/gradcam/`, per-segment numbers in
   `gradcam_summary.csv`.
 
-## Result — a MIXED answer, reported as such
+## Result, revised 2026-09-11 — against the right baselines, the frequency story does not hold
+
+Re-run with `scripts/evaluation/02_gradcam.py` on both cross-attention models,
+all five CV folds, EVERY test segment (3,752 per model, maps for the abnormal
+logit), then mean ± std across folds. Two baselines added:
+
+- **uniform-map share.** The image rows are evenly spaced in wavelet *scale*,
+  and frequency goes as 1/scale, so the axis is hyperbolic in Hz: 62.5% of the
+  ECG rows lie between 4 and 10 Hz (scales 200-500 of 20-500), and 52.7% of the
+  PCG rows between 12.5 and 25 Hz. A map that prefers nothing already scores
+  that. `tests/test_gradcam.py` pins the 62.5%.
+- **scalogram-energy share.** Where the image's own intensity sits - what a map
+  that simply follows bright pixels would score.
+
+| model | modality | band | Grad-CAM share | uniform | energy | CAM / uniform | CAM / energy |
+|---|---|---|---|---|---|---|---|
+| `cross_attn_resnet18` | ECG | 4-10 Hz | 0.683 ± 0.085 | 0.625 | 0.790 | 1.09 | 0.86 |
+| | ECG | 10-25 Hz | 0.230 ± 0.075 | 0.250 | 0.184 | 0.92 | 1.25 |
+| | PCG | 12.5-25 Hz | 0.613 ± 0.063 | 0.527 | 0.607 | 1.16 | 1.01 |
+| | PCG | 25-50 Hz | 0.220 ± 0.046 | 0.263 | 0.313 | 0.83 | 0.70 |
+| `cross_attn_fusion` | ECG | 4-10 Hz | 0.813 ± 0.150 | 0.625 | 0.783 | 1.30 | 1.04 |
+| | ECG | 10-25 Hz | 0.104 ± 0.090 | 0.250 | 0.191 | 0.42 | 0.55 |
+| | PCG | 12.5-25 Hz | 0.703 ± 0.124 | 0.527 | 0.607 | 1.34 | 1.16 |
+| | PCG | 25-50 Hz | 0.142 ± 0.043 | 0.263 | 0.313 | 0.54 | 0.45 |
+
+Full tables, with the 50+ Hz band and the normal/abnormal split:
+`reports/gradcam/<family>/gradcam_cross_fold.md`.
+
+What this says:
+
+1. **Neither model shows a clear physiological frequency preference.** The
+   ResNet-18 maps are close to flat against geometry (ratios 0.7-1.2). The
+   custom CNN leans towards the lowest ECG band (1.30x uniform), but that is
+   exactly where the scalogram's own energy sits (1.04x energy): its attention
+   follows brightness.
+2. **Day 1's "PCG yes, ECG no" is withdrawn.** Its "93.6% of ECG mass below
+   10 Hz" was read against zero - against 62.5% for a map that prefers nothing,
+   and ~79% for one that follows brightness. Its PCG median of 28 Hz "in the
+   S1/S2 band" sits where a uniform map's median already falls (~24 Hz). Both
+   halves were mostly axis geometry. The QRS / S1-S2 story can be neither
+   claimed nor refuted from these maps.
+3. **What does hold is time-localisation.** The custom CNN's maps are 5.7x
+   (ECG) and 5.1x (PCG) more concentrated in time than a flat map - they lock
+   onto discrete events in the window. ResNet-18's are ~2x: its 7 x 7 map spans
+   ~0.43 s per cell, too coarse to localise a heart sound.
+4. **ResNet-18's ECG maps are empty for 36% of normal segments** (389/1087),
+   against 2% of abnormal ones (58/2665): for many normal segments nothing in
+   the ECG pushes towards "abnormal" - what a working abnormal-logit map should
+   show. Empty maps are excluded from the averages, not averaged in as zeros.
+5. The day-2 demo lead, "ResNet PCG attention near 16 Hz", was one window;
+   across all segments its PCG median is 25.7 ± 2.7 Hz, the same as the custom
+   CNN's 25.9 ± 10.5 Hz.
+
+**For the paper:** report Grad-CAM-on-scalogram frequency attributions only
+against these baselines. The methodological point earns its own paragraph: a
+CWT scalogram's row axis is non-uniform in Hz, so raw Grad-CAM band shares
+mostly restate the transform's geometry. Median-frequency summaries have the
+same problem (uniform-map median ~7.7 Hz ECG, ~24 Hz PCG).
+
+## Day-1 result (SUPERSEDED 2026-09-11 - read against zero, not against the axis geometry)
 
 The question §10.2 asks: does the ECG map concentrate on the QRS complex's
 time–frequency region, and the PCG map on the S1/S2 bursts?
@@ -89,12 +149,11 @@ once the axis was labelled correctly.**
 
 ## Ideas
 
-- **Grad-CAM on `cross_attn_resnet18`, the strongest model.** Day 1's analysis
-  used `cross_attn_fusion`, which showed no fusion benefit. A single demo window
-  from the ResNet model put ECG attention near 5 Hz (as before) but PCG attention
-  near 16 Hz - below the S1/S2 band where `cross_attn_fusion` attended (median
-  28 Hz). One window from a misclassified example is a lead, not a result; run
-  the full fold-wise analysis in Hz before saying anything about it. Note the
-  ResNet map is 7 x 7, coarser than the custom CNN's 14 x 14.
+- *Done 2026-09-11:* Grad-CAM on `cross_attn_resnet18` across all folds - see
+  the revised result above. The single-window "PCG near 16 Hz" lead did not
+  hold (25.7 Hz across all segments).
+- A frequency-resolved attribution that is not tied to the scale-axis geometry:
+  e.g. occlusion of fixed-Hz bands (mask 10-25 Hz, measure the logit change).
+  That asks the physiological question directly instead of through row counts.
 
 - (none yet)

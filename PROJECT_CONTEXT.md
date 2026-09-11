@@ -115,6 +115,15 @@ patient-level-leaking split.
   Container smoke test, one segment from each of the first 8 normal and 8
   abnormal `cv_fold0` test records: normal 7/8, abnormal 7/8, AUC 0.922;
   `/explain` returns a PNG. The custom-CNN image's check gave normal 5/8.
+- **Grad-CAM, redone properly: the frequency story does not hold.** Both
+  cross-attention models, all folds, all 3,752 test segments each, read against
+  a uniform-map baseline (the scale axis is hyperbolic in Hz: 62.5% of ECG rows
+  lie at 4-10 Hz) and a scalogram-energy baseline. ResNet-18's maps are
+  near-flat against geometry (ratios 0.7-1.2); the custom CNN's low-frequency
+  ECG lean matches image energy (1.04x). Day 1's "PCG matches S1/S2, ECG misses
+  QRS" is withdrawn - both halves were mostly axis geometry. What holds:
+  time-localisation (custom CNN 5-6x a flat map). See
+  `docs/logs/tasks/4-interpretability.md`.
 
 ### Next, in order
 
@@ -125,10 +134,6 @@ patient-level-leaking split.
    these first, then choose among improvement ideas 2-5 on the result (stronger
    pretrained backbone, training recipe, PCG pretraining on PhysioNet 2016
    subsets B-F, the gaus4 ECG wavelet).
-3. **In progress:** Grad-CAM on `cross_attn_resnet18` across all five folds,
-   over every test segment, reported in Hz (`scripts/evaluation/02_gradcam.py`,
-   now family-agnostic), with `cross_attn_fusion` re-run under the same
-   protocol for comparison.
 
 ### Known open items
 
@@ -138,8 +143,10 @@ patient-level-leaking split.
   incompatible with serving Grad-CAM — documented in `docs/logs/tasks/5-mlops.md`.
 - **Contribution 1 is confounded** — fixed scales do not mean fixed frequency
   bands. See below.
-- **Grad-CAM gives a mixed answer** — PCG matches physiology, ECG does not. See
-  `docs/logs/tasks/4-interpretability.md`.
+- **Grad-CAM frequency attributions are dominated by the scale-axis geometry.**
+  Day 1's "PCG matches physiology, ECG does not" is withdrawn; only
+  time-localisation survives the baselines. A band-occlusion test would ask
+  the frequency question directly. See `docs/logs/tasks/4-interpretability.md`.
 - The ResNet-18 demo is local only, by owner decision (HuggingFace now charges
   for Gradio Spaces anyway): `python scripts/serving/build_hf_space.py`, then
   `cd .hf_space_staging && python app.py` (port 7860).
