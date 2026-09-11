@@ -148,6 +148,12 @@ patient-level-leaking split.
   per record; record-level 85/15 train/val split for early stopping only.
   Settings in `params.yaml` `pretrain`. 151 tests pass. Details:
   `docs/logs/daily/DAY3_12-09-2026.md`, `docs/logs/tasks/3-modeling.md`.
+- **B-F data built and verified.** 2,831 records (0 dropped, 16.5 h, 373
+  abnormal = 13%), 18,087 windows (866 MB), split 2,406 / 425 records. Archive
+  checked by zip CRC and every subset's `SHA256SUMS` (0 mismatches). Stages in
+  `dvc.lock`. Uploading to Kaggle as `ecg-pcg-fusion-pcg-pretrain` for the
+  single pretraining job; the main dataset gets a new version with the
+  fine-tuning scripts.
 
 ### Next, in order
 

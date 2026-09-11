@@ -325,3 +325,113 @@ stages:
       md5: 82afab176f6868b861b0f8f9f655d8b2.dir
       size: 352517
       nfiles: 3
+  pretrain_convert:
+    cmd: python scripts/pretrain/01_convert.py --raw-dir 
+      data/raw/physionet2016_training_bf --output-dir 
+      data/interim/pretrain_records --index-out 
+      data/interim/pretrain_records_index.csv
+    deps:
+    - path: data/raw/physionet2016_training_bf
+      hash: md5
+      md5: e2ac02c16b39f9857734c9ad26d91ddf.dir
+      size: 239915300
+      nfiles: 5722
+    - path: scripts/pretrain/01_convert.py
+      hash: md5
+      md5: ce21698d9b1a180d14508084f5041d66
+      size: 6835
+    params:
+      params.yaml:
+        data.convert.expected_fs: 2000
+        data.record_qc:
+          max_nan_fraction: 0.5
+          min_std: 1e-08
+          min_duration_s: 3.0
+        pretrain.subsets:
+        - training-b
+        - training-c
+        - training-d
+        - training-e
+        - training-f
+    outs:
+    - path: data/interim/pretrain_records
+      hash: md5
+      md5: 8182d1edcac297ed35d24aecebe83db5.dir
+      size: 161933277
+      nfiles: 2831
+    - path: data/interim/pretrain_records_dropped.csv
+      hash: md5
+      md5: 81051bcc2cf1bedf378224b0a93e2877
+      size: 2
+    - path: data/interim/pretrain_records_index.csv
+      hash: md5
+      md5: edc9235d6124143da12719b775774808
+      size: 90012
+  pretrain_scalogram:
+    cmd: python scripts/pretrain/02_scalogram.py --records-dir 
+      data/interim/pretrain_records --index-in 
+      data/interim/pretrain_records_index.csv --output-dir 
+      data/processed/scalograms/pcg_pretrain
+    deps:
+    - path: data/interim/pretrain_records
+      hash: md5
+      md5: 8182d1edcac297ed35d24aecebe83db5.dir
+      size: 161933277
+      nfiles: 2831
+    - path: data/interim/pretrain_records_index.csv
+      hash: md5
+      md5: edc9235d6124143da12719b775774808
+      size: 90012
+    - path: scripts/pretrain/02_scalogram.py
+      hash: md5
+      md5: 2a0bd693030a906933cd5de07506ba78
+      size: 9036
+    params:
+      params.yaml:
+        data.segment_qc:
+          max_nan_fraction: 0.9
+        features.scalogram:
+          image_size: 224
+          ecg_wavelet: cmor1.5-1.0
+          ecg_scale_start: 20
+          ecg_scale_stop: 501
+          pcg_wavelet: morl
+          pcg_scale_start: 7
+          pcg_scale_stop: 131
+        pretrain.max_windows_per_record: 20
+        pretrain.window_s: 3.0
+    outs:
+    - path: data/processed/scalograms/pcg_pretrain
+      hash: md5
+      md5: fc8bce9f2cc2c309711957974a4fbb47.dir
+      size: 908258218
+      nfiles: 3
+  pretrain_split:
+    cmd: python scripts/pretrain/03_split.py --records-index 
+      data/interim/pretrain_records_index.csv --row-index 
+      data/processed/scalograms/pcg_pretrain/row_index.csv --output-dir 
+      data/processed/manifests_pcg_pretrain
+    deps:
+    - path: data/interim/pretrain_records_index.csv
+      hash: md5
+      md5: edc9235d6124143da12719b775774808
+      size: 90012
+    - path: data/processed/scalograms/pcg_pretrain
+      hash: md5
+      md5: fc8bce9f2cc2c309711957974a4fbb47.dir
+      size: 908258218
+      nfiles: 3
+    - path: scripts/pretrain/03_split.py
+      hash: md5
+      md5: 88690012598795c594016a4e187c8fd1
+      size: 4156
+    params:
+      params.yaml:
+        global_seed: 42
+        pretrain.val_frac: 0.15
+    outs:
+    - path: data/processed/manifests_pcg_pretrain
+      hash: md5
+      md5: d9d4fc401d38524f40a81cd8793145b3.dir
+      size: 600789
+      nfiles: 3
