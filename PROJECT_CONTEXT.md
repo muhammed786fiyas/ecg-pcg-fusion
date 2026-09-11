@@ -106,6 +106,7 @@ patient-level-leaking split.
 - **Grad-CAM gives a mixed answer** — PCG matches physiology, ECG does not. See
   `docs/logs/tasks/4-interpretability.md`.
 - The public Space is staged but not hosted: HuggingFace now charges for Gradio Spaces.
+  It runs locally unchanged: `cd .hf_space_staging && python app.py` (port 7860).
 
 ---
 

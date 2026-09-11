@@ -85,9 +85,24 @@ conda run -n ecg_pcg python scripts/remote/04_merge_results.py --kernel-output <
 
 ## Serving
 
+**Browser demo (local)** — the strongest model, `cross_attn_resnet18`, scoring
+a whole recording over beat-centred 3 s windows, with Grad-CAM in Hz:
+
+```
+conda run -n ecg_pcg python scripts/serving/build_hf_space.py   # assemble .hf_space_staging/
+cd .hf_space_staging
+conda run -n ecg_pcg python app.py                             # http://localhost:7860
+```
+
+For a temporary public link (about 72 hours, while your machine stays on),
+change the last line of `app.py` to `launch(share=True)`. Hosting it on
+HuggingFace Spaces is ready (`build_hf_space.py --upload`) but Gradio Spaces
+now require a PRO subscription.
+
+**REST API**:
+
 ```
 conda run -n ecg_pcg uvicorn app:app --app-dir scripts/serving   # /health /predict /explain
-conda run -n ecg_pcg python scripts/serving/gradio_demo.py       # browser demo
 ```
 
 See [docker/README.md](docker/README.md) for the CPU-only training image and the
