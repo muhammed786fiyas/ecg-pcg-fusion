@@ -43,6 +43,12 @@ LEDGER_NAME = "kaggle_quota_ledger.csv"
 # non-default scalogram config lives in the ablation dataset.
 CHECKPOINT_DATASET = "ecg-pcg-fusion-checkpoints"
 ABLATION_DATASET = "ecg-pcg-fusion-ablation"
+# The PCG branch pretrained on PhysioNet 2016 B-F, for the *_pcgpre families.
+PCG_INIT_DATASET = "ecg-pcg-fusion-pcg-init"
+PCG_INIT_SUFFIX = "_pcgpre"
+# The pretraining run itself trains from its OWN dataset (--dataset-slug), whose
+# scalogram config is not in the ablation dataset despite being non-default.
+PRETRAIN_FAMILY = "pcg_pretrain"
 
 MANIFEST_SUBDIR_FOR_TAG = {
     "_leaky_val": "manifests_negative_control/arm_b_leaky_val",
@@ -105,6 +111,10 @@ def extra_dataset_for(job):
     """The second dataset this job needs, if any."""
     if job["family"] == "warm_start_fusion":
         return CHECKPOINT_DATASET
+    if job["family"].endswith(PCG_INIT_SUFFIX):
+        return PCG_INIT_DATASET
+    if job["family"] == PRETRAIN_FAMILY:
+        return ""
     if job["config"] != "default":
         return ABLATION_DATASET
     return ""

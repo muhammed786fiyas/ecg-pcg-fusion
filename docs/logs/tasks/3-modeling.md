@@ -105,6 +105,34 @@ Fusion adds nothing detectable at the ResNet level either; the best model's
 (0.770 vs 0.733 at equal sensitivity 0.931), within fold noise. Consistent with
 the permutation test (wrong-patient PCG costs 0.024).
 
+## PCG pretraining on PhysioNet 2016 B-F (declared 2026-09-12, before results)
+
+Why: fusion adds +0.008 over ResNet-18 ECG-only, and the PCG branch is the weak
+side (ResNet-18 PCG-only 0.741). Subsets B-F are ~2,800 PCG-only recordings
+from other hospitals and other patients - roughly 7x Training-A - so they can
+strengthen the PCG branch without touching a CV test record.
+
+Design, fixed before any B-F data was processed:
+
+- `scripts/pretrain/01_convert.py` - B-F PCG with Training-A's normalisation
+  and record QC; hard-fails on any Training-A record ID.
+- `scripts/pretrain/02_scalogram.py` - fixed non-overlapping 3 s windows (no
+  ECG, so not R-peak-centred), max 20 per record, Training-A's segment QC and
+  transform (pinned byte-equal by a test).
+- `scripts/pretrain/03_split.py` - record-level 85/15 train/val stratified by
+  subset and label, for early stopping only.
+- `scripts/modeling/pcg_pretrain/01_train.py` - `resnet18_pcg_only`'s model,
+  30 epochs max, patience 5. Its checkpoint's `pcg_branch` initialises:
+- `resnet18_pcg_only_pcgpre` and `cross_attn_resnet18_pcgpre` - generated from
+  their twins; identical except the PCG initialisation. No ImageNet fallback.
+
+Comparisons fixed in advance (paired per fold, patient AUC):
+`resnet18_pcg_only_pcgpre` vs `resnet18_pcg_only`; `cross_attn_resnet18_pcgpre`
+vs `resnet18_ecg_only` and vs `cross_attn_resnet18`.
+
+Limitation to state: the pretrained branch saw un-centred windows from other
+devices and sites; Training-A's are R-peak-centred.
+
 ## Decision threshold: validation-fitted screening points
 
 `scripts/evaluation/06_screening_threshold.py`, on `cross_attn_resnet18`,

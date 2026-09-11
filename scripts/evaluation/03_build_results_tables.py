@@ -33,6 +33,8 @@ MAIN_FAMILY_ORDER = [
     ("resnet18_ecg_only", "ECG-only ResNet-18", "--", "Pretrained ResNet-18"),
     ("resnet18_pcg_only", "PCG-only ResNet-18", "--", "Pretrained ResNet-18"),
     ("cross_attn_resnet18", "ResNet-18 + cross-attn", "Cross-modal attention", "Pretrained ResNet-18"),
+    ("resnet18_pcg_only_pcgpre", "PCG-only ResNet-18, B-F PCG pretraining", "--", "ResNet-18, PCG branch pretrained on B-F"),
+    ("cross_attn_resnet18_pcgpre", "ResNet-18 + cross-attn, B-F PCG pretraining", "Cross-modal attention", "ResNet-18, PCG branch pretrained on B-F"),
 ]
 
 NEGATIVE_CONTROL_CAPTION = (

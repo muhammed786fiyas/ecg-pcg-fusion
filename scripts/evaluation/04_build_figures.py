@@ -259,6 +259,7 @@ def main():
         ("warm_start_fusion", 0, 0, 0), ("cbam_fusion", 0, 0, 0),
         ("cross_attn_fusion", 0, 0, 0), ("cross_attn_resnet18", 0, 0, 0),
         ("resnet18_ecg_only", 0, 0, 0), ("resnet18_pcg_only", 0, 0, 0),
+        ("resnet18_pcg_only_pcgpre", 0, 0, 0), ("cross_attn_resnet18_pcgpre", 0, 0, 0),
     ]]
 
     print("ROC curves:")

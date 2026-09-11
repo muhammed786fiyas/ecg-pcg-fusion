@@ -29,6 +29,9 @@ TRAINING_FAMILIES = [
     "cross_attn_resnet18",
     "resnet18_ecg_only",
     "resnet18_pcg_only",
+    "pcg_pretrain",
+    "resnet18_pcg_only_pcgpre",
+    "cross_attn_resnet18_pcgpre",
 ]
 
 

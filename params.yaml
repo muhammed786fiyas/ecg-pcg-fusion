@@ -99,6 +99,29 @@ modeling:
   # of whether fusion helps at the ResNet level.
   resnet18_ecg_only: {lr: 1.0e-4, proj_dim: 256}
   resnet18_pcg_only: {lr: 1.0e-4, proj_dim: 256}
+  # PCG pretraining on PhysioNet 2016 B-F (added 2026-09-12). pcg_pretrain is
+  # the pretraining run; the two _pcgpre families are their un-pretrained twins
+  # with the PCG branch initialised from it. Hyperparameters deliberately
+  # identical to the twins, so the pairs isolate the pretraining.
+  pcg_pretrain: {lr: 1.0e-4, proj_dim: 256}
+  resnet18_pcg_only_pcgpre: {lr: 1.0e-4, proj_dim: 256}
+  cross_attn_resnet18_pcgpre: {lr: 1.0e-4, n_heads: 4, head_dim: 64, proj_dim: 256}
+
+pretrain:
+  # PCG-branch pretraining on PhysioNet 2016 subsets B-F, added 2026-09-12 and
+  # declared here before any result was seen. Different hospitals and different
+  # patients from Training-A, so nothing here can touch a CV test record;
+  # Training-A is never read by this pipeline (scripts/pretrain/).
+  subsets: [training-b, training-c, training-d, training-e, training-f]
+  # 3 s windows as in Training-A, but NOT R-peak-centred: B-F have no ECG.
+  # Non-overlapping from the start of each record, capped per record so a few
+  # long recordings cannot dominate.
+  window_s: 3.0
+  max_windows_per_record: 20
+  # Record-level, stratified by subset + label. For early stopping only - there
+  # is no pretraining test set, because no pretraining number is a result.
+  val_frac: 0.15
+  max_epochs: 30
 
 evaluation:
   cv_folds: 5

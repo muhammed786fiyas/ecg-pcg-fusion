@@ -133,3 +133,54 @@ stages:
       - data/processed/manifests/cv_fold2
       - data/processed/manifests/cv_fold3
       - data/processed/manifests/cv_fold4
+
+  # PCG-branch pretraining data: PhysioNet 2016 subsets B-F. A side pipeline
+  # that never reads Training-A (see params.yaml pretrain).
+  pretrain_convert:
+    cmd: python scripts/pretrain/01_convert.py
+      --raw-dir data/raw/physionet2016_training_bf
+      --output-dir data/interim/pretrain_records
+      --index-out data/interim/pretrain_records_index.csv
+    deps:
+      - scripts/pretrain/01_convert.py
+      - data/raw/physionet2016_training_bf
+    params:
+      - pretrain.subsets
+      - data.convert.expected_fs
+      - data.record_qc
+    outs:
+      - data/interim/pretrain_records
+      - data/interim/pretrain_records_index.csv
+      - data/interim/pretrain_records_dropped.csv
+
+  pretrain_scalogram:
+    cmd: python scripts/pretrain/02_scalogram.py
+      --records-dir data/interim/pretrain_records
+      --index-in data/interim/pretrain_records_index.csv
+      --output-dir data/processed/scalograms/pcg_pretrain
+    deps:
+      - scripts/pretrain/02_scalogram.py
+      - data/interim/pretrain_records
+      - data/interim/pretrain_records_index.csv
+    params:
+      - pretrain.window_s
+      - pretrain.max_windows_per_record
+      - data.segment_qc
+      - features.scalogram
+    outs:
+      - data/processed/scalograms/pcg_pretrain
+
+  pretrain_split:
+    cmd: python scripts/pretrain/03_split.py
+      --records-index data/interim/pretrain_records_index.csv
+      --row-index data/processed/scalograms/pcg_pretrain/row_index.csv
+      --output-dir data/processed/manifests_pcg_pretrain
+    deps:
+      - scripts/pretrain/03_split.py
+      - data/interim/pretrain_records_index.csv
+      - data/processed/scalograms/pcg_pretrain
+    params:
+      - global_seed
+      - pretrain.val_frac
+    outs:
+      - data/processed/manifests_pcg_pretrain

@@ -68,7 +68,7 @@ worse (−0.212, p=0.001). This replicates Kıymık (Physiol Meas 2026) and
 contradicts the old pipeline's fusion-wins ordering, which came from a
 patient-level-leaking split.
 
-### Day 2 (2026-09-11) — in progress right now
+### Day 2 (2026-09-11)
 
 - **Fixed a train/serve preprocessing skew.** The serving copies of the scalogram
   transform (`scripts/serving/app.py`, `gradio_demo.py`) never received day 1's
@@ -137,14 +137,27 @@ patient-level-leaking split.
   equal sensitivity (0.931). Tables: `reports/figures/ablation_table.md` and
   `paired_comparison_patient_auc.md` (now every pair, not only vs `ecg_only`).
 
+### Day 3 (2026-09-12) — in progress right now
+
+- **PCG pretraining on PhysioNet 2016 B-F: designed, coded, committed before
+  any data was processed or any model trained.** `scripts/pretrain/01-03`
+  (DVC stages `pretrain_convert`, `pretrain_scalogram`, `pretrain_split`),
+  `scripts/modeling/pcg_pretrain/`, and two fine-tuning families generated from
+  their twins. Training-A is never read by the pretraining pipeline; B-F
+  windows are fixed 3 s spans (no ECG, so not R-peak-centred), capped at 20
+  per record; record-level 85/15 train/val split for early stopping only.
+  Settings in `params.yaml` `pretrain`. 151 tests pass. Details:
+  `docs/logs/daily/DAY3_12-09-2026.md`, `docs/logs/tasks/3-modeling.md`.
+
 ### Next, in order
 
 1. Revoke the exposed HuggingFace token (no replacement needed: no public demo).
-2. **Owner decision: which improvement ideas to run next**, now that the
-   ResNet-18 baselines are in (fusion adds +0.008 over ResNet-18 ECG-only).
-   Options: stronger pretrained backbone, training recipe (time/frequency
-   masking, lower backbone lr), PCG pretraining on PhysioNet 2016 subsets B-F,
-   the gaus4 ECG wavelet. Any run chosen now is a declared follow-up.
+2. **In progress (owner's choice): PCG pretraining on PhysioNet 2016 subsets
+   B-F** - build the B-F data, pretrain the ResNet-18 PCG branch on Kaggle,
+   fine-tune `resnet18_pcg_only_pcgpre` and `cross_attn_resnet18_pcgpre` on all
+   five folds, compare against their twins and `resnet18_ecg_only`. Designed and
+   committed before any result; see the Day 3 section. The other ideas
+   (stronger backbone, training recipe, gaus4 ECG) wait on this result.
 
 ### Known open items
 

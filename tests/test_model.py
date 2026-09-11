@@ -24,6 +24,9 @@ FAMILIES = [
     "warm_start_fusion",
     "resnet18_ecg_only",
     "resnet18_pcg_only",
+    "pcg_pretrain",
+    "resnet18_pcg_only_pcgpre",
+    "cross_attn_resnet18_pcgpre",
 ]
 
 CUSTOM_BACKBONE_FAMILIES = [
@@ -119,7 +122,7 @@ def test_unimodal_models_use_only_their_own_modality():
                 f"{family} changed its output when only the PCG input changed"
             )
 
-    for family in ["pcg_only", "resnet18_pcg_only"]:
+    for family in ["pcg_only", "resnet18_pcg_only", "resnet18_pcg_only_pcgpre", "pcg_pretrain"]:
         pcg_model = load_family(family).build_model(load_params())
         pcg_model.eval()
         with torch.no_grad():

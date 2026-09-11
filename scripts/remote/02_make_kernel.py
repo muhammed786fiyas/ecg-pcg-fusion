@@ -201,6 +201,18 @@ def seed_checkpoints(models_dir):
     return copied > 0
 
 
+def find_pcg_init():
+    """The PCG branch pretrained on PhysioNet 2016 B-F, for the *_pcgpre families.
+
+    Shipped as its own dataset; matched on the file name AND a pcg_pretrain
+    parent folder, so an unrelated *_best.pth can never be picked up.
+    """
+    for current, _, files in os.walk("/kaggle/input"):
+        if "pretrain_best.pth" in files and "pcg_pretrain" in current:
+            return os.path.join(current, "pretrain_best.pth")
+    return ""
+
+
 def main():
     print("=== kaggle entry: {family} {config} {fold_tag} ===")
     print("torch sees cuda:", __import__("torch").cuda.is_available())
@@ -267,6 +279,16 @@ def main():
         argv = argv + ["--variant-tag", VARIANT_TAG]
     if NEGATIVE_CONTROL:
         argv = argv + ["--negative-control"]
+    if FAMILY.endswith("_pcgpre"):
+        pcg_init = find_pcg_init()
+        if pcg_init == "":
+            raise SystemExit(
+                "QC FAIL: " + FAMILY + " needs the PCG pretraining checkpoint and no attached "
+                "dataset holds pcg_pretrain/**/pretrain_best.pth. Sync it with 01_sync_dataset.py "
+                "--checkpoints-only --checkpoint-families pcg_pretrain and pass --extra-dataset."
+            )
+        print("PCG branch init: " + pcg_init)
+        argv = argv + ["--pcg-init", pcg_init]
 
     print("argv:", argv)
     sys.argv = argv

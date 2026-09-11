@@ -1,0 +1,17 @@
+# family fold max_epochs [config] [variant_tag] [negative_control]
+# Fine-tuning with the B-F-pretrained PCG branch (added 2026-09-12). Same
+# schedule as their un-pretrained twins in jobs_main.txt and
+# jobs_resnet18_unimodal.txt. Needs the ecg-pcg-fusion-pcg-init dataset, which
+# 05_run_queue.py attaches automatically for *_pcgpre families.
+
+resnet18_pcg_only_pcgpre 0 50
+resnet18_pcg_only_pcgpre 1 50
+resnet18_pcg_only_pcgpre 2 50
+resnet18_pcg_only_pcgpre 3 50
+resnet18_pcg_only_pcgpre 4 50
+
+cross_attn_resnet18_pcgpre 0 50
+cross_attn_resnet18_pcgpre 1 50
+cross_attn_resnet18_pcgpre 2 50
+cross_attn_resnet18_pcgpre 3 50
+cross_attn_resnet18_pcgpre 4 50

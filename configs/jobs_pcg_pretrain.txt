@@ -1,0 +1,6 @@
+# family fold max_epochs [config] [variant_tag] [negative_control]
+# PCG-branch pretraining on PhysioNet 2016 subsets B-F (added 2026-09-12).
+# ONE job: the fold is ignored by the pretraining script. Runs against its own
+# dataset: pass --dataset-slug ecg-pcg-fusion-pcg-pretrain to 05_run_queue.py.
+
+pcg_pretrain 0 30 pcg_pretrain
