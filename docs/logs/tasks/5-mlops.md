@@ -163,6 +163,28 @@ strongly abnormal - so "validated 6/6" was an overstatement.
 - Requirements pull **CPU** torch wheels via `--extra-index-url`, so the Space
   does not install ~2 GB of CUDA libraries it cannot use.
 
+### Day 2: HuggingFace now charges for Gradio Spaces
+
+`create_repo` returned **402 Payment Required**: "Static Spaces are free for
+everyone, but hosting Gradio and Docker Spaces on free cpu-basic requires a PRO
+subscription." Nothing was created. `build_hf_space.py` now turns this into a
+clear `QC FAIL`. A static Space cannot run PyTorch server-side, so staying free
+on HuggingFace would mean in-browser inference (ONNX + JavaScript, including a
+reimplementation of the CWT and R-peak detection) - a substantial rewrite.
+
+### Day 2: credentials
+
+A HuggingFace token reached `README.md` through a stray right-click paste during
+`hf auth login`. Caught before any commit. A local pre-commit hook now blocks
+staged changes that add credential-shaped strings (HuggingFace, GitHub, Kaggle
+key); it is not versioned, so reinstall it on a fresh clone.
+`tests/test_no_secrets.py` scans every tracked file, locally and in CI.
+
+### Day 2: container re-validated on both classes
+
+After the rebuild: normal 5/8, abnormal 7/8, AUC 0.938 over 16 segments, one per
+record. The day-1 validation used six abnormal segments only.
+
 ## Done since
 - DVC initialised and every stage wired; `pipeline_dag.md` regenerated.
 - `scripts/remote/` complete: `01_sync_dataset`, `02_make_kernel`,

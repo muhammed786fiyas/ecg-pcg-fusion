@@ -187,6 +187,7 @@ def stage(staging_dir):
 
 def upload(staging_dir, space_id, private):
     from huggingface_hub import HfApi
+    from huggingface_hub.errors import HfHubHTTPError
 
     api = HfApi(token=os.environ.get("HF_TOKEN"))
     who = api.whoami()
@@ -194,8 +195,22 @@ def upload(staging_dir, space_id, private):
     if "/" not in space_id:
         space_id = who["name"] + "/" + space_id
 
-    api.create_repo(repo_id=space_id, repo_type="space", space_sdk="gradio",
-                    private=private, exist_ok=True)
+    try:
+        api.create_repo(repo_id=space_id, repo_type="space", space_sdk="gradio",
+                        private=private, exist_ok=True)
+    except HfHubHTTPError as err:
+        status = getattr(err.response, "status_code", None)
+        if status == 402:
+            # Observed 2026-09-11: HuggingFace now requires a PRO subscription
+            # to host Gradio or Docker Spaces, even on the free cpu-basic
+            # hardware. Only static Spaces remain free. Nothing is created.
+            raise SystemExit(
+                "QC FAIL: HuggingFace returned 402 Payment Required. Gradio Spaces now "
+                "need a PRO subscription (https://huggingface.co/pro); only static "
+                "Spaces are free. No Space was created. The staged folder is ready to "
+                "upload once the account can host it."
+            )
+        raise
     api.upload_folder(folder_path=staging_dir, repo_id=space_id, repo_type="space",
                       commit_message="Deploy ECG-PCG cross_attn_resnet18 demo")
     print(f"uploaded. Space: https://huggingface.co/spaces/{space_id}")

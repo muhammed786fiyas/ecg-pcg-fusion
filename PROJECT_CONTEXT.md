@@ -77,14 +77,22 @@ patient-level-leaking split.
   R-peak-centred windows with mean aggregation. The bundled normal example
   (`a0038`) is misclassified (p = 0.584) and kept, with ground truth displayed.
 
+- **Docker inference image rebuilt with the fix** and re-tested on both
+  classes: normal 5/8, abnormal 7/8, AUC 0.938 over 16 segments (one per record,
+  `cv_fold0` test). It still serves `cross_attn_fusion`.
+- **HuggingFace refused the upload with HTTP 402**: Gradio and Docker Spaces now
+  require a PRO subscription, even on free `cpu-basic` hardware. Nothing was
+  created. The staged Space is ready to upload.
+- **A HuggingFace token was accidentally pasted into `README.md`**, caught before
+  any commit. A local pre-commit hook and `tests/test_no_secrets.py` now block
+  credential-shaped strings. The owner should revoke that token.
+
 ### Next, in order
 
-1. **HuggingFace upload** — waiting on the owner's Write token
-   (huggingface.co -> Settings -> Access Tokens -> Create new token -> Write).
-   Then `python scripts/serving/build_hf_space.py --upload`.
-2. **Rebuild the Docker inference image.** Docker Desktop was not running on
-   day 2, so `ecg-pcg-serve:latest` still contains the pre-fix, skewed `app.py`.
-   Rebuild, then smoke-test on both classes.
+1. **Owner decision: where to host the public demo** — HuggingFace PRO, a free
+   alternative, or no hosted demo. With PRO it is one command:
+   `python scripts/serving/build_hf_space.py --upload`.
+2. Revoke the exposed HuggingFace token; create a new one.
 3. Grad-CAM on `cross_attn_resnet18` across folds, reported in Hz.
 
 ### Known open items
@@ -97,8 +105,7 @@ patient-level-leaking split.
   bands. See below.
 - **Grad-CAM gives a mixed answer** — PCG matches physiology, ECG does not. See
   `docs/logs/tasks/4-interpretability.md`.
-- The public Space is staged but not uploaded (waiting on the token).
-- `ecg-pcg-serve:latest` is stale until rebuilt (see Next, item 2).
+- The public Space is staged but not hosted: HuggingFace now charges for Gradio Spaces.
 
 ---
 

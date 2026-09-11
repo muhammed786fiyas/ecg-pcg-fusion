@@ -52,6 +52,13 @@ Two cautions that came out of getting this wrong once:
   (`git branch <name> origin/main`) before force-pushing, so the pre-rewrite
   commits survive.
 
+- **Never commit a credential.** The repo is public and pushes are immediate,
+  so a committed secret is leaked within seconds and must be revoked. A local
+  `.git/hooks/pre-commit` blocks staged changes that add HuggingFace, GitHub or
+  Kaggle-key-shaped strings - it is not versioned, so reinstall it on a fresh
+  clone. `tests/test_no_secrets.py` is the versioned backstop. Never echo a
+  token in tool output; redact it.
+
 ### Definition of done — check this before every `git commit`
 
 > **A step is not complete until `PROJECT_CONTEXT.md`'s Status section and
