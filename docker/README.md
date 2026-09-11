@@ -16,17 +16,20 @@ free GPU through `scripts/remote/`, using the same training scripts unchanged.
 
 ## Inference image
 
-Export the TorchScript model first — the image carries only that, not a
-checkpoint plus the training code:
+It serves `cross_attn_resnet18`, the study's best model (fold 0, chosen by
+inner-validation AUC). Export it first — the image carries the exported model,
+not the training code:
 
 ```
 python docker/export_torchscript.py \
-  --checkpoint models/cross_attn_fusion/default/default_cv_fold0_best.pth
+  --checkpoint models/cross_attn_resnet18/default/default_cv_fold0_best.pth
 docker build -f docker/Dockerfile.inference -t ecg-pcg-serve .
 docker run --rm -p 8000:8000 ecg-pcg-serve
 ```
 
-Then `GET /health`, `POST /predict`, `POST /explain`.
+Then `GET /health`, `POST /predict`, `POST /explain`. Each request scores one
+3-second window; the local Gradio demo (`scripts/serving/hf_space_app.py`) scores
+whole recordings. The two model artifacts are ~89 MB each.
 
 `/health` reports `degraded` rather than crash-looping when no checkpoint is
 present, so the container can tell you what is actually wrong.

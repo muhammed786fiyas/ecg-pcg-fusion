@@ -1,4 +1,10 @@
-"""FastAPI service for the cross-attention ECG-PCG fusion model.
+"""FastAPI service for the ECG-PCG fusion model.
+
+Serves cross_attn_resnet18, the study's best family (patient AUC 0.938 +/- 0.039
+over record-level 5-fold CV): a pretrained ResNet-18 per modality with
+bidirectional cross-modal attention. It scores ONE 3 s window per request; the
+local Gradio demo (hf_space_app.py) scores whole recordings. Until 2026-09-11
+this service carried the custom-CNN cross_attn_fusion model instead.
 
 Endpoints:
   GET  /health   model loaded, version, device
@@ -23,13 +29,14 @@ import numpy as np
 import pywt
 import torch
 import torch.nn as nn
+import torchvision
 import yaml
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import Response
 from PIL import Image
 from pydantic import BaseModel, Field
 
-MODEL_VERSION = "cross_attn_fusion/1"
+MODEL_VERSION = "cross_attn_resnet18/1"
 IMAGE_SIZE = 224
 UINT8_MAX = 255.0
 EXPECTED_FS = 2000
@@ -43,43 +50,17 @@ PCG_SCALES = np.arange(7, 131)
 
 DROPOUT = 0.5
 N_HEADS = 4
+PROJ_DIM = 256
 CAM_EPSILON = 1e-8
 # Must equal PAD_SCALE_FACTOR in scripts/features/01_scalogram.py.
 PAD_SCALE_FACTOR = 4
 
+# Fold 0: the CV model with the highest inner-VALIDATION AUC (0.9745), the same
+# weights the Gradio demo serves. Chosen without looking at test performance.
 CHECKPOINT_PATH = os.environ.get(
-    "MODEL_CHECKPOINT", "models/cross_attn_fusion/default/default_cv_fold0_best.pth"
+    "MODEL_CHECKPOINT", "models/cross_attn_resnet18/default/default_cv_fold0_best.pth"
 )
 PARAMS_PATH = os.environ.get("PARAMS_PATH", "params.yaml")
-
-
-class ConvBlock(nn.Module):
-    def __init__(self, in_channels, out_channels):
-        super().__init__()
-        self.block = nn.Sequential(
-            nn.Conv2d(in_channels, out_channels, 3, padding=1),
-            nn.BatchNorm2d(out_channels),
-            nn.ReLU(),
-            nn.MaxPool2d(2),
-        )
-
-    def forward(self, x):
-        return self.block(x)
-
-
-class CNNBranch(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.features = nn.Sequential(
-            ConvBlock(1, 32), ConvBlock(32, 64), ConvBlock(64, 128), ConvBlock(128, 256)
-        )
-        self.pool = nn.AdaptiveAvgPool2d((1, 1))
-
-    def feature_maps(self, x):
-        return self.features(x)
-
-    def forward(self, x):
-        return self.pool(self.features(x)).flatten(1)
 
 
 class BidirectionalCrossAttention(nn.Module):
@@ -96,14 +77,32 @@ class BidirectionalCrossAttention(nn.Module):
         return self.ecg_norm(ecg_tokens + attended_ecg), self.pcg_norm(pcg_tokens + attended_pcg)
 
 
-class CrossAttnFusion(nn.Module):
-    def __init__(self, dropout, n_heads):
+class ResNetBranch(nn.Module):
+    """ResNet-18 trunk, 1-channel input replicated to 3, projected to 256."""
+
+    def __init__(self, proj_dim):
         super().__init__()
-        self.ecg_branch = CNNBranch()
-        self.pcg_branch = CNNBranch()
-        self.cross_attention = BidirectionalCrossAttention(256, n_heads)
+        # weights=None: every backbone weight lives in the fine-tuned checkpoint,
+        # so fetching ImageNet weights at startup would be a wasted download.
+        backbone = torchvision.models.resnet18(weights=None)
+        self.stem = nn.Sequential(
+            backbone.conv1, backbone.bn1, backbone.relu, backbone.maxpool,
+            backbone.layer1, backbone.layer2, backbone.layer3, backbone.layer4,
+        )
+        self.project = nn.Conv2d(512, proj_dim, 1)
+
+    def feature_maps(self, x):
+        return self.project(self.stem(x.repeat(1, 3, 1, 1)))
+
+
+class CrossAttnResNet18(nn.Module):
+    def __init__(self, dropout, n_heads, proj_dim):
+        super().__init__()
+        self.ecg_branch = ResNetBranch(proj_dim)
+        self.pcg_branch = ResNetBranch(proj_dim)
+        self.cross_attention = BidirectionalCrossAttention(proj_dim, n_heads)
         self.classifier = nn.Sequential(
-            nn.Linear(512, 128), nn.ReLU(), nn.Dropout(dropout), nn.Linear(128, 1)
+            nn.Linear(proj_dim * 2, 128), nn.ReLU(), nn.Dropout(dropout), nn.Linear(128, 1)
         )
 
     def to_tokens(self, feature_map):
@@ -213,7 +212,7 @@ def load_model():
     Both are legitimate inputs and they need different handling:
 
     - a **training checkpoint** (`*_best.pth`) is a dict with a "model" key
-      holding a state dict. It is loaded into an eager CrossAttnFusion, which
+      holding a state dict. It is loaded into an eager CrossAttnResNet18, which
       supports Grad-CAM because hooks can be registered on its submodules.
     - a **TorchScript export** (`*.pt`) deserialises to a RecursiveScriptModule.
       It runs /predict fine but cannot serve /explain: registering backward
@@ -229,7 +228,7 @@ def load_model():
         # Serve with random weights rather than refusing to start, so /health can
         # report the real problem instead of the container crash-looping.
         STATE["loaded"] = False
-        model = CrossAttnFusion(DROPOUT, N_HEADS)
+        model = CrossAttnResNet18(DROPOUT, N_HEADS, PROJ_DIM)
         model.eval()
         STATE["model"] = model
         STATE["supports_explain"] = True
@@ -239,7 +238,7 @@ def load_model():
     loaded = torch.load(CHECKPOINT_PATH, map_location="cpu", weights_only=False)
 
     if isinstance(loaded, dict) and "model" in loaded:
-        model = CrossAttnFusion(DROPOUT, N_HEADS)
+        model = CrossAttnResNet18(DROPOUT, N_HEADS, PROJ_DIM)
         model.load_state_dict(loaded["model"])
         STATE["supports_explain"] = True
         print(f"loaded training checkpoint {CHECKPOINT_PATH} (Grad-CAM available)")
@@ -261,7 +260,7 @@ async def lifespan(application):
 
 app = FastAPI(
     title="ECG-PCG Cardiac Abnormality Detection",
-    description="Dual-branch CWT scalogram fusion with cross-modal attention.",
+    description="Dual-branch pretrained ResNet-18 over CWT scalograms, with cross-modal attention.",
     version=MODEL_VERSION,
     lifespan=lifespan,
 )
@@ -327,7 +326,9 @@ def predict(request: SignalRequest):
 
 
 def grad_cam_for_branch(model, branch, ecg_tensor, pcg_tensor):
-    convs = [layer for layer in branch.features.modules() if isinstance(layer, nn.Conv2d)]
+    # The last Conv2d of the branch - for ResNetBranch, the 1x1 projection on
+    # layer4's 7x7 map, the same layer the Gradio demo and 02_gradcam.py hook.
+    convs = [layer for layer in branch.modules() if isinstance(layer, nn.Conv2d)]
     target = convs[-1]
 
     captured = {}

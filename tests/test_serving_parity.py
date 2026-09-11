@@ -14,6 +14,7 @@ before any deploy.
 """
 
 import importlib.util
+import inspect
 import os
 
 import numpy as np
@@ -23,7 +24,9 @@ import pytest
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCALOGRAM_DIR = os.path.join(REPO_ROOT, "data", "processed", "scalograms", "default")
 AUGMENTED_DIR = os.path.join(REPO_ROOT, "data", "interim", "augmented")
-SERVING_FILES = ["app.py", "gradio_demo.py"]
+# The REST API and the Gradio demo. gradio_demo.py was retired on 2026-09-11 in
+# favour of hf_space_app.py, which carries its own copy of the transform.
+SERVING_FILES = ["app.py", "hf_space_app.py"]
 SEGMENTS = ["a0001_seg000_orig", "a0200_seg003_orig", "a0405_seg000_orig"]
 # The uint8 round trip is deterministic, so anything above one level of
 # rounding is a real divergence rather than float noise.
@@ -50,6 +53,13 @@ def to_levels(unit_image):
     return np.round(np.asarray(unit_image) * 255.0).astype(int)
 
 
+def serving_scalogram(module, signal, scales, wavelet):
+    """app.py takes the sampling rate as an argument; the demo fixes it at 2000 Hz."""
+    if "fs" in inspect.signature(module.compute_scalogram).parameters:
+        return module.compute_scalogram(signal, scales, wavelet, 2000)
+    return module.compute_scalogram(signal, scales, wavelet)
+
+
 @pytest.mark.parametrize("serving_file", SERVING_FILES)
 @pytest.mark.parametrize("segment_id", SEGMENTS)
 def test_serving_scalogram_matches_training_memmap(serving_file, segment_id):
@@ -64,8 +74,8 @@ def test_serving_scalogram_matches_training_memmap(serving_file, segment_id):
     row = int(row_of[segment_id])
     segment = np.load(segment_path)
 
-    ecg = to_levels(module.compute_scalogram(segment["ecg"], module.ECG_SCALES, module.ECG_WAVELET, 2000))
-    pcg = to_levels(module.compute_scalogram(segment["pcg"], module.PCG_SCALES, module.PCG_WAVELET, 2000))
+    ecg = to_levels(serving_scalogram(module, segment["ecg"], module.ECG_SCALES, module.ECG_WAVELET))
+    pcg = to_levels(serving_scalogram(module, segment["pcg"], module.PCG_SCALES, module.PCG_WAVELET))
 
     ecg_diff = int(np.max(np.abs(ecg - ecg_memmap[row].astype(int))))
     pcg_diff = int(np.max(np.abs(pcg - pcg_memmap[row].astype(int))))

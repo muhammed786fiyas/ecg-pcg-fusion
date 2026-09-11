@@ -1,8 +1,13 @@
-"""Export cross_attn_fusion to TorchScript for the inference image.
+"""Export a trained model to TorchScript for the inference image.
 
-The inference image carries this artifact and nothing else - no training code,
-no dataset, no DVC. Tracing rather than scripting because the model is a plain
-feed-forward graph with no data-dependent control flow.
+Defaults to cross_attn_resnet18, the study's best family, which the service in
+scripts/serving/app.py defines. The inference image carries these artifacts and
+nothing else - no training code, no dataset, no DVC. Tracing rather than
+scripting because the model is a plain feed-forward graph with no
+data-dependent control flow.
+
+Everything in the output directory is copied into the image, so any artifact
+left there from an earlier export is reported: remove it, or it ships too.
 """
 
 import argparse
@@ -13,7 +18,7 @@ import torch
 import yaml
 
 IMAGE_SIZE = 224
-DEFAULT_OUTPUT = "models/serving/cross_attn_fusion.pt"
+DEFAULT_OUTPUT_DIR = os.path.join("models", "serving")
 
 
 def load_family(family):
@@ -28,11 +33,13 @@ def load_family(family):
 
 def main():
     parser = argparse.ArgumentParser(description="export the fusion model to TorchScript")
-    parser.add_argument("--family", default="cross_attn_fusion")
+    parser.add_argument("--family", default="cross_attn_resnet18")
     parser.add_argument("--checkpoint", required=True)
-    parser.add_argument("--output", default=DEFAULT_OUTPUT)
+    parser.add_argument("--output", default="", help="defaults to models/serving/<family>.pt")
     parser.add_argument("--params", default="params.yaml")
     args = parser.parse_args()
+    if args.output == "":
+        args.output = os.path.join(DEFAULT_OUTPUT_DIR, args.family + ".pt")
 
     print("=== export_torchscript ===")
     if not os.path.exists(args.checkpoint):
@@ -70,13 +77,18 @@ def main():
     # The brief asks for an inference image carrying "only a TorchScript export",
     # but it also asks that image to serve /explain - and Grad-CAM cannot register
     # backward hooks on a scripted module's internals. Those two requirements
-    # cannot both hold. Shipping the state dict as well costs ~5 MB and keeps all
-    # three endpoints working; the TorchScript is still there for graph-only
-    # serving where /explain is not needed.
-    eager_path = os.path.join(os.path.dirname(args.output), "cross_attn_fusion_eager.pth")
+    # cannot both hold. Shipping the state dict as well costs a second copy of
+    # the weights and keeps all three endpoints working; the TorchScript is still
+    # there for graph-only serving where /explain is not needed.
+    eager_path = os.path.join(os.path.dirname(args.output), args.family + "_eager.pth")
     torch.save({"model": model.state_dict()}, eager_path)
     eager_mb = round(os.path.getsize(eager_path) / (1024.0 * 1024.0), 2)
     print(f"wrote {eager_path} ({eager_mb} MB) so /explain works in the container")
+
+    written = [os.path.basename(args.output), os.path.basename(eager_path)]
+    stale = [name for name in sorted(os.listdir(os.path.dirname(args.output))) if name not in written]
+    if len(stale) > 0:
+        print(f"WARNING: other files in {os.path.dirname(args.output)} will ship in the image too: {stale}")
 
 
 if __name__ == "__main__":

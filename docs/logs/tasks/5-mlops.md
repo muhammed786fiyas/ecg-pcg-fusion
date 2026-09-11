@@ -190,6 +190,26 @@ key); it is not versioned, so reinstall it on a fresh clone.
 After the rebuild: normal 5/8, abnormal 7/8, AUC 0.938 over 16 segments, one per
 record. The day-1 validation used six abnormal segments only.
 
+### Day 2: REST API and Docker image switched to cross_attn_resnet18
+
+Owner approved: every serving path now runs the best model, and the redundant
+single-window `gradio_demo.py` is gone (the Gradio demo is `hf_space_app.py`).
+
+- `app.py`: ResNet-18 cross-attention model, backbone built with `weights=None`
+  (no ImageNet download at startup - the checkpoint holds every weight). Default
+  checkpoint is fold 0, chosen by inner-validation AUC. `/explain` hooks the last
+  Conv2d of each branch generically - for ResNet, the 1x1 projection on the 7x7
+  map, the same layer as the demo and `02_gradcam.py`.
+- `export_torchscript.py`: defaults to `cross_attn_resnet18`; artifact names
+  follow the family; warns about any other file in `models/serving/`, because the
+  Dockerfile copies the whole directory into the image.
+- `Dockerfile.inference`: adds torchvision (CPU wheel). Artifacts ~89 MB each,
+  image 2.07 GB.
+- Smoke test against the running container, one seg000 per record for the first
+  8 normal and 8 abnormal `cv_fold0` test records: normal 7/8, abnormal 7/8, AUC
+  0.922; `/health` ok with preprocessing matching `params.yaml`; `/explain`
+  200 image/png.
+
 ## Done since
 - DVC initialised and every stage wired; `pipeline_dag.md` regenerated.
 - `scripts/remote/` complete: `01_sync_dataset`, `02_make_kernel`,

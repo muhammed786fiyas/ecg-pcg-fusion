@@ -79,7 +79,7 @@ patient-level-leaking split.
 
 - **Docker inference image rebuilt with the fix** and re-tested on both
   classes: normal 5/8, abnormal 7/8, AUC 0.938 over 16 segments (one per record,
-  `cv_fold0` test). It still serves `cross_attn_fusion`.
+  `cv_fold0` test). Later switched to `cross_attn_resnet18` (below).
 - **HuggingFace refused the upload with HTTP 402**: Gradio and Docker Spaces now
   require a PRO subscription, even on free `cpu-basic` hardware. Nothing was
   created. The staged Space is ready to upload.
@@ -108,6 +108,13 @@ patient-level-leaking split.
   vs 0.864 for ECG alone. **Still missing: a ResNet-18 ECG-only baseline.**
   Without it, "the gain comes from the backbone, not the fusion" is inferred,
   not measured.
+- **Serving moved to `cross_attn_resnet18`; `gradio_demo.py` retired.** The REST
+  API and the Docker inference image now serve the best model (fold 0, chosen
+  by inner-validation AUC), the same weights as the Gradio demo. Image 2.07 GB
+  (TorchScript + eager state dict, ~89 MB each; traced vs eager max diff 0.0).
+  Container smoke test, one segment from each of the first 8 normal and 8
+  abnormal `cv_fold0` test records: normal 7/8, abnormal 7/8, AUC 0.922;
+  `/explain` returns a PNG. The custom-CNN image's check gave normal 5/8.
 
 ### Next, in order
 
@@ -118,9 +125,10 @@ patient-level-leaking split.
    these first, then choose among improvement ideas 2-5 on the result (stronger
    pretrained backbone, training recipe, PCG pretraining on PhysioNet 2016
    subsets B-F, the gaus4 ECG wavelet).
-3. Retire `scripts/serving/gradio_demo.py`; move the REST API and the Docker
-   inference image to `cross_attn_resnet18` (owner approved).
-4. Grad-CAM on `cross_attn_resnet18` across folds, reported in Hz.
+3. **In progress:** Grad-CAM on `cross_attn_resnet18` across all five folds,
+   over every test segment, reported in Hz (`scripts/evaluation/02_gradcam.py`,
+   now family-agnostic), with `cross_attn_fusion` re-run under the same
+   protocol for comparison.
 
 ### Known open items
 

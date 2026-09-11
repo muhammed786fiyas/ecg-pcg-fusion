@@ -100,7 +100,7 @@ was evaluated and not adopted - see
 `scripts/evaluation/06_screening_threshold.py`. The demo is local only; there is
 no hosted public version.
 
-**REST API**:
+**REST API** — the same model (fold 0 weights), one 3 s window per request:
 
 ```
 conda run -n ecg_pcg uvicorn app:app --app-dir scripts/serving   # /health /predict /explain
