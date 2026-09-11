@@ -88,4 +88,13 @@ once the axis was labelled correctly.**
   attention), specifically validation on dual-CWT scalograms — not as a first.
 
 ## Ideas
+
+- **Grad-CAM on `cross_attn_resnet18`, the strongest model.** Day 1's analysis
+  used `cross_attn_fusion`, which showed no fusion benefit. A single demo window
+  from the ResNet model put ECG attention near 5 Hz (as before) but PCG attention
+  near 16 Hz - below the S1/S2 band where `cross_attn_fusion` attended (median
+  28 Hz). One window from a misclassified example is a lead, not a result; run
+  the full fold-wise analysis in Hz before saying anything about it. Note the
+  ResNet map is 7 x 7, coarser than the custom CNN's 14 x 14.
+
 - (none yet)

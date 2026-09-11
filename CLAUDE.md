@@ -80,6 +80,18 @@ What "updated" means:
 
 ---
 
+## Tooling gotcha — patching files from a shell heredoc
+
+When a file is patched with a Python script inside a Bash heredoc, the shell
+layer collapses a doubled backslash, so an intended backslash-n escape arrives
+as a REAL newline and breaks the string literal it was meant to sit in. This has
+broken four patches. Either use the Edit tool for anything containing escape
+sequences, or build them in the script with `chr(92)` (backslash) and
+`chr(10)` (newline). Always `ast.parse` or `ruff check` a patched file before
+moving on.
+
+---
+
 ## The split rules — the top correctness requirement
 
 **The patient is the unit of splitting.** Every split — train, val, test, every

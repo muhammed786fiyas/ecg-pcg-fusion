@@ -47,3 +47,6 @@ Thumbs.db
 # .kaggle_staging_ablation/ directory, and a 430 MB zip reached a commit.
 payload.zip
 *.zip
+
+# Assembled HuggingFace Space (carries an 89 MB checkpoint - never commit it)
+.hf_space_staging/

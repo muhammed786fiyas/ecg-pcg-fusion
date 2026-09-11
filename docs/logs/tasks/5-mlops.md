@@ -134,6 +134,35 @@ Two fixes:
 **Run `06_reconcile.py` before building any results table.** An incomplete family
 averaged as if complete is exactly the kind of error a table cannot show you.
 
+### Day 2: the served model was fed the wrong scalograms
+
+The CWT reflect-padding fix went into the training pipeline on day 1, but the
+serving code keeps its own copy of the transform (self-contained by convention)
+and was never updated. Compared with the training memmap on the same segments,
+the served ECG scalograms differed by ~56-62/255 per pixel on average (max ~240).
+Day 1's container smoke test still passed, because all six segments it used were
+strongly abnormal - so "validated 6/6" was an overstatement.
+
+- Fixed in `scripts/serving/app.py` and `scripts/serving/gradio_demo.py`.
+- `tests/test_serving_parity.py` compares the serving transform against the
+  training memmap for real segments, within one uint8 level. It needs the
+  pipeline outputs, so it skips in CI - **run it locally before any deploy**.
+- Container smoke tests must sample **both classes**.
+- The Docker rebuild with the fix failed because Docker Desktop was not running;
+  `ecg-pcg-serve:latest` stays stale until it is rebuilt.
+
+### Day 2: public HuggingFace Space for cross_attn_resnet18
+
+- `scripts/serving/hf_space_app.py` - the Space's `app.py`.
+- `scripts/serving/build_hf_space.py` - stages `.hf_space_staging/` (gitignored:
+  it carries an 89 MB checkpoint) and uploads it with `--upload`, reading the
+  token from `HF_TOKEN` or a prior `hf auth login`, never printing it.
+- Weights selected by inner-validation AUC (fold 0, 0.9745); examples from fold
+  0's held-out test partition, chosen by record ID before looking at predictions.
+  The normal example is misclassified and the demo says so.
+- Requirements pull **CPU** torch wheels via `--extra-index-url`, so the Space
+  does not install ~2 GB of CUDA libraries it cannot use.
+
 ## Done since
 - DVC initialised and every stage wired; `pipeline_dag.md` regenerated.
 - `scripts/remote/` complete: `01_sync_dataset`, `02_make_kernel`,

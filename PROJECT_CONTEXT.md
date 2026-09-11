@@ -63,16 +63,29 @@ worse (−0.212, p=0.001). This replicates Kıymık (Physiol Meas 2026) and
 contradicts the old pipeline's fusion-wins ordering, which came from a
 patient-level-leaking split.
 
-### Next session — start here
+### Day 2 (2026-09-11) — in progress right now
 
-1. **HuggingFace Spaces deploy** (owner will supply a Write token from
-   huggingface.co → Settings → Access Tokens). Decide first whether to switch
-   the public demo from `cross_attn_fusion` to `cross_attn_resnet18` — the
-   latter is much stronger but needs `torchvision` and adapted Grad-CAM hooks,
-   since its branches are ResNet rather than `CNNBranch`.
-2. Consider Grad-CAM on `cross_attn_resnet18` for the paper, since the
-   interpretability figure currently uses a model that showed no fusion benefit.
-3. §15.14 wrap-up: the milestone tag `v1.0-rebuild` is already cut.
+- **Fixed a train/serve preprocessing skew.** The serving copies of the scalogram
+  transform (`scripts/serving/app.py`, `gradio_demo.py`) never received day 1's
+  reflect-padding fix; the served model was fed ECG scalograms differing from the
+  training memmap by ~59/255 per pixel. Fixed, and guarded permanently by
+  `tests/test_serving_parity.py`. **Day 1's "container validated 6/6" claim was
+  inadequate** — all six test segments were strongly abnormal.
+- **HuggingFace Space for `cross_attn_resnet18` staged and tested locally**
+  (`scripts/serving/hf_space_app.py`, `scripts/serving/build_hf_space.py`). Fold 0
+  weights, selected by inner-validation AUC 0.9745. Record-level inference over
+  R-peak-centred windows with mean aggregation. The bundled normal example
+  (`a0038`) is misclassified (p = 0.584) and kept, with ground truth displayed.
+
+### Next, in order
+
+1. **HuggingFace upload** — waiting on the owner's Write token
+   (huggingface.co -> Settings -> Access Tokens -> Create new token -> Write).
+   Then `python scripts/serving/build_hf_space.py --upload`.
+2. **Rebuild the Docker inference image.** Docker Desktop was not running on
+   day 2, so `ecg-pcg-serve:latest` still contains the pre-fix, skewed `app.py`.
+   Rebuild, then smoke-test on both classes.
+3. Grad-CAM on `cross_attn_resnet18` across folds, reported in Hz.
 
 ### Known open items
 
@@ -84,7 +97,8 @@ patient-level-leaking split.
   bands. See below.
 - **Grad-CAM gives a mixed answer** — PCG matches physiology, ECG does not. See
   `docs/logs/tasks/4-interpretability.md`.
-- The Gradio demo runs locally on port 7860 but is not deployed.
+- The public Space is staged but not uploaded (waiting on the token).
+- `ecg-pcg-serve:latest` is stale until rebuilt (see Next, item 2).
 
 ---
 

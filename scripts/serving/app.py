@@ -44,6 +44,8 @@ PCG_SCALES = np.arange(7, 131)
 DROPOUT = 0.5
 N_HEADS = 4
 CAM_EPSILON = 1e-8
+# Must equal PAD_SCALE_FACTOR in scripts/features/01_scalogram.py.
+PAD_SCALE_FACTOR = 4
 
 CHECKPOINT_PATH = os.environ.get(
     "MODEL_CHECKPOINT", "models/cross_attn_fusion/default/default_cv_fold0_best.pth"
@@ -134,8 +136,17 @@ def compute_scalogram(signal, scales, wavelet, fs):
     The quantisation is not cosmetic: training saw uint8 scalograms, so inference
     must quantise too or it feeds the model a slightly different distribution.
     """
-    coeffs = pywt.cwt(signal, scales, wavelet, sampling_period=1.0 / fs, method="fft")[0]
+    # Reflect-pad before transforming, then crop back - IDENTICAL to
+    # scripts/features/01_scalogram.py. Without this the ECG scalogram is
+    # dominated by the CWT cone-of-influence artifact that training removed, and
+    # the model is fed a distribution it never saw (measured: mean |diff| ~59/255
+    # per ECG pixel against the training memmap).
+    pad = int(min(len(signal), PAD_SCALE_FACTOR * int(np.max(scales))))
+    padded = np.pad(signal, pad, mode="reflect") if pad > 0 else signal
+    coeffs = pywt.cwt(padded, scales, wavelet, sampling_period=1.0 / fs, method="fft")[0]
     magnitude = np.abs(coeffs).astype(np.float32)
+    if pad > 0:
+        magnitude = magnitude[:, pad : pad + len(signal)]
     return scalogram_to_unit(resize_to_square(magnitude, IMAGE_SIZE))
 
 
